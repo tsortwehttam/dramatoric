@@ -1,0 +1,25 @@
+---
+title: Example Story
+author: Matthew Trost
+---
+
+ONCE: DO
+  HOST:
+  You're playing "{{title}}", by {{author}}.
+  It is currently {{timeFormat(timeNow(), "MMMM do, yyyy")}}.
+  Say something!
+END
+
+ON: $input DO
+  HOST:
+  You said "{{$input.value}}".
+
+  IF: toLowerCase(strTrim($input.value)) == "exit" DO
+    EXIT:
+  END
+END
+
+ON: $exit DO
+  HOST:
+  Goodbye!
+END

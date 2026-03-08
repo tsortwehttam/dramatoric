@@ -1,0 +1,35 @@
+{
+  "name": "well-language-support",
+  "displayName": "Dramatoric Language",
+  "description": "Syntax highlighting for Dramatoric .dramatoric files",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "well",
+        "aliases": [
+          "Dramatoric",
+          "well"
+        ],
+        "extensions": [
+          ".dramatoric"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "well",
+        "scopeName": "source.dramatoric",
+        "path": "./syntaxes/dramatoric.tmLanguage.json"
+      }
+    ]
+  }
+}
