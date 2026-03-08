@@ -16,11 +16,13 @@ import { LOG_directive } from "./directives/LogDirective";
 import { MUSIC_or_SOUND_directive } from "./directives/MusicSoundDirectives";
 import { PARALLEL_directive } from "./directives/ParallelDirective";
 import { PRELUDE_directive } from "./directives/PreludeResumeEpilogueDirective";
+import { RENDER_directive } from "./directives/RenderDirective";
 import { ROOT_directive } from "./directives/RootGroupDirective";
 import { LOAD_directive, SAVE_directive } from "./directives/SaveLoadDirectives";
 import { SET_directive } from "./directives/SetDirective";
 import { SUSPEND_directive } from "./directives/SuspendDirective";
 import { VARY_directive } from "./directives/VaryDirective";
+import { WAIT_directive } from "./directives/WaitDirective";
 import { BREAK_directive, WHILE_directive } from "./directives/WhileBreakDirective";
 import { StoryDirectiveFuncDef } from "./Helpers";
 
@@ -46,11 +48,13 @@ DIRECTIVES.push(LLM_directive);
 DIRECTIVES.push(LOG_directive);
 DIRECTIVES.push(MUSIC_or_SOUND_directive);
 DIRECTIVES.push(PARALLEL_directive);
+DIRECTIVES.push(RENDER_directive);
 DIRECTIVES.push(RUN_directive);
 DIRECTIVES.push(SAVE_directive);
 DIRECTIVES.push(LOAD_directive);
 DIRECTIVES.push(SET_directive);
 DIRECTIVES.push(VARY_directive);
+DIRECTIVES.push(WAIT_directive);
 DIRECTIVES.push(WHILE_directive);
 DIRECTIVES.push(noop_directive);
 

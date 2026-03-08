@@ -143,6 +143,7 @@ export const VARY_PICK_KEY = "PICK";
 
 export const EVENT_KEY = "$event";
 export const INPUT_KEY = "$input";
+export const PARAMS_KEY = "$params";
 
 export type EventHandlerOpts = { once: boolean };
 
@@ -217,6 +218,7 @@ export type Player = {
 export type StorySession = {
   mode: "text" | "audio";
   player: Player;
+  params: Record<string, SerialValue>;
   state: Record<string, SerialValue>;
   inputs: RawInputShape[];
   history: StoryEvent[];
@@ -372,8 +374,10 @@ export function contextReadable(ctx: StoryEventContext) {
     $first: turn === 0,
     $time: ctx.session.time,
     $event: ctx.event,
+    [PARAMS_KEY]: ctx.session.params,
     // Author-defined state
     ...ctx.sources.meta,
+    params: ctx.session.params,
     ...ctx.session.state,
     ...stackVars, // Stack variables override session state
   };
@@ -425,6 +429,7 @@ export const EMIT_TYPE = "EMIT";
 export const EXIT_TYPE = "EXIT";
 export const LOAD_TYPE = "LOAD";
 export const SAVE_TYPE = "SAVE";
+export const RENDER_TYPE = "RENDER";
 export const WAIT_TYPE = "WAIT";
 export const WHILE_TYPE = "WHILE";
 export const RUN_TYPE = "RUN";
@@ -468,6 +473,7 @@ export const DIRECTIVE_TYPES = [
   EXIT_TYPE,
   LOAD_TYPE,
   SAVE_TYPE,
+  RENDER_TYPE,
   WAIT_TYPE,
   WHILE_TYPE,
   RUN_TYPE,
@@ -499,6 +505,7 @@ export const VAR_DEFINING_TYPES = [
   FETCH_TYPE,
   LLM_TYPE,
   CODE_TYPE,
+  RENDER_TYPE,
 ];
 
 export function reifySession(session: Partial<StorySession> = {}): StorySession {
@@ -510,6 +517,7 @@ export function reifySession(session: Partial<StorySession> = {}): StorySession 
       label: PLAYER,
     },
     inputs: [],
+    params: {},
     state: {},
     history: [],
     entities: {},
@@ -968,7 +976,8 @@ export type IORequest =
   | { kind: "speech"; text: string; voice: StoryVoiceSpec }
   | { kind: "sound"; prompt: string; durationMs: number }
   | { kind: "music"; prompt: string; durationMs: number }
-  | { kind: "image"; prompt: string };
+  | { kind: "image"; prompt: string }
+  | { kind: "video"; prompt: string; durationMs: number; format: string; assets: string[] };
 
 type IOResultMap = {
   llm: unknown | null;
@@ -979,6 +988,7 @@ type IOResultMap = {
   sound: { url: string };
   music: { url: string };
   image: { url: string };
+  video: { url: string };
 };
 
 export type IOResult<K extends IORequest["kind"]> = IOResultMap[K];

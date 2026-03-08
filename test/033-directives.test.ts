@@ -306,6 +306,84 @@ async function test() {
     from: "FRANK",
     value: "Done.",
   });
+
+  // CAPTURE: param auto-fills from session.params
+  result = await execStoryTest(
+    dedent`
+      PRELUDE: DO
+        name = CAPTURE: param name
+
+        FRANK:
+        Hello, {{name.value}}!
+      END
+    `,
+    { params: { name: "Alice" } },
+  );
+  expectHas(result.state.name, { value: "Alice", result: "Alice" });
+  expectHas(result.history.find((e) => e.value === "Hello, Alice!"), {
+    from: "FRANK",
+    value: "Hello, Alice!",
+  });
+
+  // CAPTURE: param falls back to suspend when missing
+  result = await execStoryTest(
+    dedent`
+      PRELUDE: DO
+        name = CAPTURE: param name
+
+        FRANK:
+        Hello, {{name.value}}!
+      END
+    `,
+    {},
+  );
+  expect(result.history.length, 1); // only $start
+
+  result = await execStoryTest(
+    dedent`
+      PRELUDE: DO
+        name = CAPTURE: param name
+
+        FRANK:
+        Hello, {{name.value}}!
+      END
+    `,
+    {
+      ...result,
+      inputs: [{ from: "me", raw: "Bob", value: "Bob" }],
+    },
+  );
+  expectHas(result.state.name, { value: "Bob" });
+  expectHas(result.history.find((e) => e.value === "Hello, Bob!"), {
+    from: "FRANK",
+    value: "Hello, Bob!",
+  });
+
+  // WAIT: emits $wait event once registered
+  result = await execStoryTest(
+    dedent`
+      PRELUDE: DO
+        WAIT: duration 2s
+      END
+    `,
+    {},
+  );
+  const waited = result.history.find((e) => e.type === "$wait");
+  expect(!!waited, true);
+  expect(waited?.duration, 2000);
+
+  // RENDER: can generate media artifacts via io in mock mode
+  result = await execStoryTest(
+    dedent`
+      PRELUDE: DO
+        img = RENDER: kind image; prompt "fizzy soda can on ice"
+      END
+    `,
+    {},
+    true,
+  );
+  expectHas(result.state.img, { kind: "image", url: "mock://media", prompt: "fizzy soda can on ice" });
+  expect(!!result.history.find((e) => e.type === "$media" && e.url === "mock://media"), true);
 }
 
 test();

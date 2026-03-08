@@ -1,5 +1,5 @@
 import { SerialValue } from "../../lib/CoreTypings";
-import { unwrapAsString } from "../../lib/EvalCasting";
+import { castToString, safeGet, unwrapAsString } from "../../lib/EvalCasting";
 import { isBlank } from "../../lib/TextHelpers";
 import {
   applySuspendCheckpoint,
@@ -56,6 +56,14 @@ import { CAPTURE_TYPE, StoryDirectiveFuncDef } from "../Helpers";
 export const CAPTURE_directive: StoryDirectiveFuncDef = {
   type: [CAPTURE_TYPE],
   func: async (node, ctx, pms) => {
+    const param = castToString(pms.pairs.param ?? "").trim();
+    if (param) {
+      const value = safeGet(ctx.session.params, param);
+      if (value !== null) {
+        return [reifyCapturedEvent(ctx.event, value)];
+      }
+    }
+
     if (applySuspendCheckpoint(ctx)) {
       return [];
     }
@@ -85,3 +93,26 @@ export const CAPTURE_directive: StoryDirectiveFuncDef = {
     return [ctx.event];
   },
 };
+
+function reifyCapturedEvent(event: { raw: string; value: string; result: SerialValue }, value: SerialValue) {
+  const text = reifyCapturedText(value);
+  return {
+    ...event,
+    raw: text,
+    value: text,
+    result: value,
+  };
+}
+
+function reifyCapturedText(value: SerialValue): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value == null) {
+    return "";
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}

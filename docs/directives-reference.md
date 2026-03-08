@@ -1197,7 +1197,7 @@ WHILE: true DO
   nextAction = INPUT:
 
   IF: $iteration > 2 DO
-    GOTO: Calm Down
+    BREAK:
   END
 END
 ```

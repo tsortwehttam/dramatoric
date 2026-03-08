@@ -26,8 +26,8 @@ Your App (Three.js, terminal, web UI, etc.)
 ### 1. Compile your story
 
 ```typescript
-import { compileCartridge } from "aramatoric/eng/WellCompiler";
-import { reifyCartridge, reifySession } from "aramatoric/eng/WellHelpers";
+import { compileCartridge } from "aramatoric/eng/Compiler";
+import { reifyCartridge, reifySession } from "aramatoric/eng/Helpers";
 
 const cartridge = reifyCartridge({
   "main.dramatoric": `
@@ -59,7 +59,7 @@ const sources = compileCartridge(cartridge);
 ### 2. Create context
 
 ```typescript
-import { createContext, step, ContextCallbacks } from "aramatoric/eng/WellEngine";
+import { createContext, step, ContextCallbacks } from "aramatoric/eng/Engine";
 
 const callbacks: ContextCallbacks = {
   onEvent: (event) => {
@@ -248,7 +248,7 @@ The IO adapter is how you provide external services to the engine. The default `
 An `IOFunc` is a single async function that handles requests by `kind`:
 
 ```typescript
-import { IOFunc, IORequest, IOResult } from "aramatoric/eng/WellHelpers";
+import { IOFunc, IORequest, IOResult } from "aramatoric/eng/Helpers";
 
 function createBrowserIO(): IOFunc {
   return async (request) => {
@@ -489,9 +489,9 @@ The WebSocket approach is simpler to set up and keeps the engine in its native e
 Putting it all together for a Facade-style 3D scene:
 
 ```typescript
-import { compileCartridge } from "aramatoric/eng/WellCompiler";
-import { createContext, step } from "aramatoric/eng/WellEngine";
-import { reifyCartridge, reifySession } from "aramatoric/eng/WellHelpers";
+import { compileCartridge } from "aramatoric/eng/Compiler";
+import { createContext, step } from "aramatoric/eng/Engine";
+import { reifyCartridge, reifySession } from "aramatoric/eng/Helpers";
 
 // 1. Compile story
 const cartridge = reifyCartridge(storySource);

@@ -249,6 +249,10 @@ export function createIO(env: Env, config: Partial<IOConfig> = {}): IOFunc {
         return { url } as IOResult<K>;
       }
 
+      case "video": {
+        throw new Error("Video generation is not implemented in default IO. Provide a custom IOFunc for kind=video.");
+      }
+
       default:
         throw new Error(`Unknown IO request kind: ${(req as IORequest).kind}`);
     }
@@ -277,6 +281,7 @@ function createMockIO(): IOFunc {
       case "sound":
       case "music":
       case "image":
+      case "video":
         return { url: "mock://media" } as IOResult<K>;
       default:
         throw new Error(`Unknown IO request kind: ${(req as IORequest).kind}`);
