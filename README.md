@@ -1,6 +1,6 @@
 # Dramatoric
 
-<p align="center"> <img src="logo.jpg" alt="Dramatoric" width="200" /> </p>
+<p align="center"> <img src="logo.png" alt="Dramatoric" width="200" /> </p>
 
 Dramatoric is an interactive narrative engine for creating dynamic, branching stories. Think interactive fiction (intfic), story-driven games, and generative media — but instead of static scripts, every story adapts to the player's choices. You can play the detective in a true crime thriller, the villain in a sweeping fantasy, or the narrator of a collaborative romance. Dramatoric handles the story layer — plot, dialogue, characters, and logic — and leaves rendering to whatever medium you choose: audio, text, visuals, or something new entirely.
 
@@ -128,7 +128,7 @@ Here's another important type of stanza: `IF:`. With `IF:`, you can add _conditi
 
 - Earlier, we talked about how stanzas can have _parameters_. In the case of the
   above `IF:`, we have one parameter, written like so: `decision.result ==
-  "ignore"`. This is a bit of _code_ we use to evaluate whether the player wants
+"ignore"`. This is a bit of _code_ we use to evaluate whether the player wants
   to talk to Mr. Darcy, or ignore. There are a few places in Dramatoric where you
   can write code, and the parameter part of an `IF:` stanza is one of them.
 
