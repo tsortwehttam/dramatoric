@@ -6,7 +6,7 @@ Dramatoric is an interactive narrative engine for creating dynamic, branching st
 
 For developing and contributing, see the project documentation listed at the end of this README.
 
-Note: The README of this repo is generated from a real Dramatoric script file. Do not edit the README.md file directly. See `fic/readme/main.dramatoric` and make changes there. See also `.vscode/extensions/dramatoric` for syntax info. Dramatoric was created by Matthew Trost. The first version was designed, architected, and coded (largely) by hand without using LLMs/AI agents.
+Note: The README of this repo is generated from a real Dramatoric script file. Do not edit the README.md file directly. See `fic/readme/main.dram` and make changes there. See also `.vscode/extensions/dramatoric` for syntax info. Dramatoric was created by Matthew Trost. The first version was designed, architected, and coded (largely) by hand without using LLMs/AI agents.
 
 ## Dramatoric Story Language
 
@@ -675,3 +675,4 @@ Copyright © 2026 - All Rights Reserved
 - [Directives Reference](./docs/directives-reference.md)
 - [Functions Reference](./docs/functions-reference.md)
 - [Developing & Contributing](./docs/developing-contributing.md)
+- [PEG Grammar](./eng/Compiler.ts) (inline in `WELLTALE_GRAMMAR`)

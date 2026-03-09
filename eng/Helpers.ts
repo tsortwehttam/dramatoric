@@ -383,7 +383,7 @@ export function contextReadable(ctx: StoryEventContext) {
   };
 }
 
-export const WELL_EXT = ".dramatoric";
+export const WELL_EXT = ".dram";
 
 export function isMain(p: string) {
   return p.endsWith(`main.${WELL_EXT}`);
@@ -552,7 +552,7 @@ export function reifyCartridge(inp: any): StoryCartridge {
     return {};
   }
   if (typeof inp === "string") {
-    return { "main.dramatoric": inp };
+    return { "main.dram": inp };
   }
   if (Array.isArray(inp)) {
     return {};

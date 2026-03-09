@@ -39,10 +39,10 @@ The web player is a React app served by Vite that connects to a WebSocket server
 
 ```bash
 # Play a specific story
-yarn play --cartridge fic/example/main.dramatoric
+yarn play --cartridge fic/example/main.dram
 
 # Resume a saved session
-yarn play --cartridge fic/example/main.dramatoric --session path/to/session.json
+yarn play --cartridge fic/example/main.dram --session path/to/session.json
 ```
 
 This starts both the WSS (port 8787) and Vite dev server (port 5199). Open `http://localhost:5199` in your browser.
@@ -67,7 +67,7 @@ Write tests for all functional units that don't require I/O or significant setup
 
 ## Generating Docs
 
-The README is generated from `fic/readme/main.dramatoric` — do not edit `README.md` directly. API reference docs are also generated:
+The README is generated from `fic/readme/main.dram` — do not edit `README.md` directly. API reference docs are also generated:
 
 ```bash
 yarn docs
@@ -75,7 +75,7 @@ yarn docs
 
 ## VSCode Extension
 
-A syntax highlighting extension for `.dramatoric` files lives at `.vscode/extensions/dramatoric`. Install it locally:
+A syntax highlighting extension for `.dram` files lives at `.vscode/extensions/dramatoric`. Install it locally:
 
 ```bash
 ln -s "$(pwd)/.vscode/extensions/dramatoric" ~/.vscode/extensions/dramatoric

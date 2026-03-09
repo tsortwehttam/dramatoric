@@ -13,7 +13,7 @@ function varErrors(errors: ErrorBase[]) {
 async function test() {
   // Valid: no script expressions, just simple args
   const r1 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 SET: foo 2
 NARRATOR:
 Hello world.
@@ -23,7 +23,7 @@ Hello world.
 
   // Valid: script expression with built-in operators (using literals only)
   const r2 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 SET: foo 2 + 3
 SET: bar 10 > 5
 `),
@@ -32,7 +32,7 @@ SET: bar 10 > 5
 
   // Valid: script expression with stdlib function (using literals)
   const r3 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 SET: len arrayLength([1, 2, 3])
 IF: arrayLength([1, 2]) > 0 DO
   LOG: has items
@@ -43,7 +43,7 @@ END
 
   // Valid: multiple stdlib functions with literals
   const r4 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 SET: result arrayJoin([1, 2, 3], ", ")
 SET: check stringLength("hello") > 0 && arrayContains([1, 2], 1)
 `),
@@ -52,7 +52,7 @@ SET: check stringLength("hello") > 0 && arrayContains([1, 2], 1)
 
   // Invalid: unknown function in expression
   const r5 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: unknownFunc(5) > 0 DO
   LOG: yes
 END
@@ -65,7 +65,7 @@ END
 
   // Invalid: multiple unknown functions (expression starts with function call)
   const r6 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: badFunc(1) + anotherBadFunc(2) > 0 DO
   LOG: yes
 END
@@ -78,7 +78,7 @@ END
 
   // Invalid: nested unknown function inside valid function
   const r7 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: arrayLength(fakeMethod([1, 2])) > 0 DO
   LOG: yes
 END
@@ -90,7 +90,7 @@ END
 
   // Valid: math functions from stdlib (use expression form)
   const r8 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: calcAbs(-5) + calcMax(1, 2, 3) > 0 DO
   LOG: yes
 END
@@ -100,7 +100,7 @@ END
 
   // Mix of valid and invalid functions
   const r9 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: arrayLength([1]) > 0 DO
   LOG: yes
 END
@@ -118,7 +118,7 @@ END
 
   // Valid: string functions (use expression form)
   const r10 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: strIncludes("hello world", "world") DO
   LOG: yes
 END
@@ -128,7 +128,7 @@ END
 
   // Non-expression args should not trigger validation
   const r11 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 GOTO: Some Scene Name
 SCENE: Another Scene DO
   LOG: hello
@@ -139,7 +139,7 @@ END
 
   // Valid: ternary with literals (starts with paren to look like expression)
   const r12 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: (true ? arrayLength([1, 2]) : 0) > 0 DO
   LOG: yes
 END
@@ -149,7 +149,7 @@ END
 
   // Invalid: unknown function in ternary
   const r13 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: (true ? badTernaryFunc(1) : 0) > 0 DO
   LOG: yes
 END
@@ -161,7 +161,7 @@ END
 
   // Vars with falsey values should still count as defined
   const r14 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 SET: ready false; retries 0; note null
 IF: ready == false && retries == 0 && note == null DO
   LOG: ok
@@ -172,7 +172,7 @@ END
 
   // Capture-assigned var should satisfy dot-path access checks
   const r15 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 decision = CAPTURE:
 Pick "yes" or "no"
 IF: decision.result == "yes" DO
@@ -184,7 +184,7 @@ END
 
   // Magic event vars should be considered known at compile time
   const r16 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 ON: $input DO
   IF: strTrim($input.value) == "hi" DO
     LOG: hello
@@ -196,7 +196,7 @@ END
 
   // Truly missing vars should still be flagged
   const r17 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: totallyMissingVar > 0 DO
   LOG: no
 END

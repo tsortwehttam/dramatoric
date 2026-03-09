@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=20"
   },
+  "bin": {
+    "dramatoric": "./bin/dramatoric.ts"
+  },
   "scripts": {
     "ts": "npx tsx --",
     "tc": "tsc --noEmit",
@@ -13,8 +16,8 @@
     "ver": "yarn tc && yarn docs && yarn test",
     "docs": "yarn ts dev/gen-readme.ts && yarn ts dev/gen-functions-docs.ts && yarn ts dev/gen-directives-docs.ts",
     "wss": "yarn tsx watch ./web/wss.ts",
-    "repl": "yarn ts ./dev/repl",
-    "play": "yarn ts ./dev/play"
+    "repl": "yarn ts ./bin/dramatoric.ts repl",
+    "play": "yarn ts ./bin/dramatoric.ts play"
   },
   "devDependencies": {
     "@types/dedent": "^0.7.2",

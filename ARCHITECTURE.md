@@ -31,10 +31,10 @@ Dramatoric is an event-driven interpreter for interactive audio stories (a DSL f
 
 ## Compilation Pipeline
 
-Dramatoric source code is written in `.dramatoric` files. A collection of files that constitute a story (`.dramatoric` scripts plus optional `.json`, `.yaml`, or `.js`/`.ts` files) is called a **cartridge**. Files are passed into a simple compilation pipeline:
+Dramatoric source code is written in `.dram` files. A collection of files that constitute a story (`.dram` scripts plus optional `.json`, `.yaml`, or `.js`/`.ts` files) is called a **cartridge**. Files are passed into a simple compilation pipeline:
 
 ```
-Source (.dramatoric files)
+Source (.dram files)
        │
        ▼
 ┌─────────────────┐
@@ -72,7 +72,7 @@ Note: Code is pre-processed before reaching the PEG layer to (1) extract YAML fr
 
 After parsing, the compiler:
 
-1. Finds all `.dramatoric` files and merges them, moving any file named `main.dramatoric` to the top
+1. Finds all `.dram` files and merges them, moving any file named `main.dram` to the top
 2. Extracts metadata from any JSON or YAML files in the cartridge
 3. Hoists `BLOCK:` definitions to global scope so they can be called from anywhere
 4. Wraps top-level content that isn't inside a handler into an implicit `ON: $input` handler

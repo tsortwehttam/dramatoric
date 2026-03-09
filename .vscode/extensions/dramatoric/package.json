@@ -1,7 +1,7 @@
 {
   "name": "well-language-support",
   "displayName": "Dramatoric Language",
-  "description": "Syntax highlighting for Dramatoric .dramatoric files",
+  "description": "Syntax highlighting for Dramatoric .dram files",
   "version": "0.0.1",
   "publisher": "local",
   "engines": {
@@ -13,21 +13,21 @@
   "contributes": {
     "languages": [
       {
-        "id": "well",
+        "id": "dram",
         "aliases": [
           "Dramatoric",
-          "well"
+          "dram"
         ],
         "extensions": [
-          ".dramatoric"
+          ".dram"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "well",
-        "scopeName": "source.dramatoric",
+        "language": "dram",
+        "scopeName": "source.dram",
         "path": "./syntaxes/dramatoric.tmLanguage.json"
       }
     ]

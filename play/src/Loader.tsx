@@ -25,7 +25,7 @@ export function Loader({ connected, onBoot }: Props) {
         const cart: Record<string, string> = {};
         for (const [name, data] of Object.entries(extracted)) {
           if (
-            name.endsWith(".dramatoric") ||
+            name.endsWith(".dram") ||
             name.endsWith(".json") ||
             name.endsWith(".yaml") ||
             name.endsWith(".yml")
@@ -40,7 +40,7 @@ export function Loader({ connected, onBoot }: Props) {
     }
 
     file.text().then((content) => {
-      const name = file.name.endsWith(".dramatoric") ? file.name : "main.dramatoric";
+      const name = file.name.endsWith(".dram") ? file.name : "main.dram";
       setFiles({ [name]: content });
       setText("");
     });
@@ -60,7 +60,7 @@ export function Loader({ connected, onBoot }: Props) {
     if (Object.keys(files).length > 0) {
       cartridge = files;
     } else if (text.trim()) {
-      cartridge = { "main.dramatoric": text };
+      cartridge = { "main.dram": text };
     } else {
       return;
     }
@@ -100,9 +100,9 @@ export function Loader({ connected, onBoot }: Props) {
         <div className="loader-section">
           <label>Upload file</label>
           <button className="btn secondary" onClick={() => fileRef.current?.click()}>
-            Choose .dramatoric or .zip
+            Choose .dram or .zip
           </button>
-          <input ref={fileRef} type="file" accept=".dramatoric,.zip,.txt" onChange={handleFile} hidden />
+          <input ref={fileRef} type="file" accept=".dram,.zip,.txt" onChange={handleFile} hidden />
           {fileNames.length > 0 && <p className="dim small">{fileNames.join(", ")}</p>}
         </div>
 

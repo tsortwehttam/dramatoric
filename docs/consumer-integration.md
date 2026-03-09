@@ -30,7 +30,7 @@ import { compileCartridge } from "aramatoric/eng/Compiler";
 import { reifyCartridge, reifySession } from "aramatoric/eng/Helpers";
 
 const cartridge = reifyCartridge({
-  "main.dramatoric": `
+  "main.dram": `
     ENTITY: GUARD; x 5; y 0; z 3; expression "neutral" DO
       You are a stern palace guard.
     END
@@ -383,7 +383,7 @@ public class DramatoricClient : MonoBehaviour
         // Boot with story source
         await Send(JsonUtility.ToJson(new {
             type = "boot",
-            cartridge = new { main_well = "your .dramatoric script here" }
+            cartridge = new { main_well = "your .dram script here" }
         }));
 
         // Start receiving events
@@ -446,7 +446,7 @@ func _process(_delta):
 func boot(story_source: String):
     var msg = JSON.stringify({
         "type": "boot",
-        "cartridge": { "main.dramatoric": story_source }
+        "cartridge": { "main.dram": story_source }
     })
     ws.send_text(msg)
 

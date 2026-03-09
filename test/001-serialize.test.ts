@@ -4,7 +4,7 @@ import { expect } from "./TestUtils";
 async function test() {
   // Basic narrator with text
   const r1 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 NARRATOR:
 Hello world.
 `),
@@ -15,7 +15,7 @@ Hello world.
 
   // With SET and IF block
   const r2 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 SET: foo 2
 
 IF: foo > 1 DO
@@ -31,7 +31,7 @@ END
 
   // With variable assignment
   const r3 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 result = CAPTURE:
 What is your name?
 `),
@@ -41,7 +41,7 @@ What is your name?
 
   // With YAML frontmatter
   const r4 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`---
+    "main.dram": Buffer.from(`---
 title: My Story
 author: Test Author
 ---
@@ -67,15 +67,15 @@ IF: count == 0 DO
   This is the beginning.
 END
 `;
-  const c1 = await compileCartridge({ "main.dramatoric": Buffer.from(original) });
+  const c1 = await compileCartridge({ "main.dram": Buffer.from(original) });
   const serialized = serializeSources(c1);
-  const c2 = await compileCartridge({ "main.dramatoric": Buffer.from(serialized) });
+  const c2 = await compileCartridge({ "main.dram": Buffer.from(serialized) });
 
   expect(c1.root.kids.length, c2.root.kids.length);
 
   // Multiple voices
   const r5 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 ALICE:
 Hello Bob!
 
@@ -89,7 +89,7 @@ Hello Alice!
 
   // Nested blocks
   const r6 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: true DO
   IF: false DO
     NARRATOR:
@@ -105,7 +105,7 @@ END
 
   // With eave content
   const r7 = await compileCartridge({
-    "main.dramatoric": Buffer.from(`
+    "main.dram": Buffer.from(`
 IF: x > 0 DO |some eave|
   LOG: hello
 END

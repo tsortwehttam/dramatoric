@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const PROJ_ROOT = resolve(DIR, "..");
-const SRC = join(PROJ_ROOT, "fic", "readme", "main.dramatoric");
+const SRC = join(PROJ_ROOT, "fic", "readme", "main.dram");
 const DEST = join(PROJ_ROOT, "README.md");
 
 type Part = {
@@ -44,7 +44,7 @@ function splitParts(src: string): Part[] {
   }
 
   if (inBlock) {
-    throw new Error("Unclosed block comment in fic/readme/main.dramatoric");
+    throw new Error("Unclosed block comment in fic/readme/main.dram");
   }
 
   if (start < src.length) {

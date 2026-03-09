@@ -1,8 +1,8 @@
 {
   "name": "Dramatoric",
-  "scopeName": "source.dramatoric",
+  "scopeName": "source.dram",
   "fileTypes": [
-    "well"
+    "dram"
   ],
   "patterns": [
     {
@@ -17,17 +17,17 @@
   ],
   "repository": {
     "front-matter": {
-      "name": "comment.block.documentation.dramatoric",
+      "name": "comment.block.documentation.dram",
       "begin": "\\A(---)[\\t ]*$",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.definition.front-matter.begin.dramatoric"
+          "name": "punctuation.definition.front-matter.begin.dram"
         }
       },
       "end": "^(---)[\\t ]*$",
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.front-matter.end.dramatoric"
+          "name": "punctuation.definition.front-matter.end.dram"
         }
       },
       "patterns": [
@@ -47,22 +47,22 @@
       ]
     },
     "comment-block": {
-      "name": "comment.block.dramatoric",
+      "name": "comment.block.dram",
       "begin": "/\\*",
       "beginCaptures": {
         "0": {
-          "name": "punctuation.definition.comment.begin.dramatoric"
+          "name": "punctuation.definition.comment.begin.dram"
         }
       },
       "end": "\\*/",
       "endCaptures": {
         "0": {
-          "name": "punctuation.definition.comment.end.dramatoric"
+          "name": "punctuation.definition.comment.end.dram"
         }
       }
     },
     "comment-line": {
-      "name": "comment.line.double-slash.dramatoric",
+      "name": "comment.line.double-slash.dram",
       "match": "^[\\t ]*//.*$"
     },
     "stanza": {
@@ -83,35 +83,35 @@
     },
     "stanza-with-do-block": {
       "comment": "Stanza with explicit DO...END block: DIRECTIVE: args DO ... END",
-      "name": "meta.stanza.block.dramatoric",
+      "name": "meta.stanza.block.dram",
       "begin": "^([\\t ]*)(?:([a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?(?:[\\t ]*,[\\t ]*[a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?)*)[\\t ]*(=)[\\t ]*)?((?:\\{\\{[^}]*\\}\\}|[^\\s\\n:a-z-])(?:\\{\\{[^}]*\\}\\}|[^\\n:a-z:])*)(:)(?:([\\t ]+[^\\n]*?)[\\t ]+)?[\\t ]*(DO)(?:[\\t ]*(\\|[^|\\n]*\\|))?[\\t ]*$",
       "beginCaptures": {
         "2": {
-          "name": "variable.parameter.dramatoric"
+          "name": "variable.parameter.dram"
         },
         "3": {
-          "name": "keyword.directive.dramatoric"
+          "name": "keyword.directive.dram"
         },
         "4": {
-          "name": "entity.name.tag.dramatoric"
+          "name": "entity.name.tag.dram"
         },
         "5": {
-          "name": "punctuation.separator.key-value.dramatoric"
+          "name": "punctuation.separator.key-value.dram"
         },
         "6": {
-          "name": "string.unquoted.dramatoric"
+          "name": "string.unquoted.dram"
         },
         "7": {
-          "name": "keyword.directive.dramatoric"
+          "name": "keyword.directive.dram"
         },
         "8": {
-          "name": "variable.parameter.dramatoric"
+          "name": "variable.parameter.dram"
         }
       },
       "end": "^\\1(END)\\b",
       "endCaptures": {
         "1": {
-          "name": "keyword.directive.dramatoric"
+          "name": "keyword.directive.dram"
         }
       },
       "patterns": [
@@ -128,20 +128,20 @@
     },
     "stanza-with-implicit-block": {
       "comment": "Stanza with implicit body (no DO): DIRECTIVE: followed by body lines",
-      "name": "meta.stanza.implicit.dramatoric",
+      "name": "meta.stanza.implicit.dram",
       "begin": "^[\\t ]*(?:([a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?(?:[\\t ]*,[\\t ]*[a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?)*)[\\t ]*(=)[\\t ]*)?((?:\\{\\{[^}]*\\}\\}|[^\\s\\n:a-z-])(?:\\{\\{[^}]*\\}\\}|[^\\n:a-z:])*)(:)[\\t ]*$",
       "beginCaptures": {
         "1": {
-          "name": "variable.parameter.dramatoric"
+          "name": "variable.parameter.dram"
         },
         "2": {
-          "name": "keyword.directive.dramatoric"
+          "name": "keyword.directive.dram"
         },
         "3": {
-          "name": "entity.name.tag.dramatoric"
+          "name": "entity.name.tag.dram"
         },
         "4": {
-          "name": "punctuation.separator.key-value.dramatoric"
+          "name": "punctuation.separator.key-value.dram"
         }
       },
       "while": "^(?![\\t ]*$)(?![\\t ]*(?:[a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?[\\t ]*=[\\t ]*)?(?:\\{\\{[^}]*\\}\\}|[^\\s\\n:a-z-])(?:\\{\\{[^}]*\\}\\}|[^\\n:a-z:])*:)(?![\\t ]*END\\b)",
@@ -156,23 +156,23 @@
     },
     "stanza-single-line": {
       "comment": "Single-line stanza: DIRECTIVE: args (no body)",
-      "name": "meta.stanza.line.dramatoric",
+      "name": "meta.stanza.line.dram",
       "match": "^[\\t ]*(?:([a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?(?:[\\t ]*,[\\t ]*[a-zA-Z_$][a-zA-Z0-9_]*(?:\\[\\])?)*)[\\t ]*(=)[\\t ]*)?((?:\\{\\{[^}]*\\}\\}|[^\\s\\n:a-z-])(?:\\{\\{[^}]*\\}\\}|[^\\n:a-z:])*)(:)([\\t ]+.+)?$",
       "captures": {
         "1": {
-          "name": "variable.parameter.dramatoric"
+          "name": "variable.parameter.dram"
         },
         "2": {
-          "name": "keyword.directive.dramatoric"
+          "name": "keyword.directive.dram"
         },
         "3": {
-          "name": "entity.name.tag.dramatoric"
+          "name": "entity.name.tag.dram"
         },
         "4": {
-          "name": "punctuation.separator.key-value.dramatoric"
+          "name": "punctuation.separator.key-value.dram"
         },
         "5": {
-          "name": "string.unquoted.dramatoric"
+          "name": "string.unquoted.dram"
         }
       }
     },
@@ -180,7 +180,7 @@
       "match": "^[\\t ]*(END)\\b",
       "captures": {
         "1": {
-          "name": "keyword.directive.dramatoric"
+          "name": "keyword.directive.dram"
         }
       }
     },
@@ -196,23 +196,23 @@
           "include": "#parenthetical"
         },
         {
-          "name": "string.unquoted.dramatoric",
+          "name": "string.unquoted.dram",
           "match": "[^\\{\\[\\(\\n]+"
         }
       ]
     },
     "interpolation": {
-      "name": "variable.interpolation.dramatoric",
+      "name": "variable.interpolation.dram",
       "begin": "\\{\\{",
       "beginCaptures": {
         "0": {
-          "name": "punctuation.definition.interpolation.begin.dramatoric"
+          "name": "punctuation.definition.interpolation.begin.dram"
         }
       },
       "end": "\\}\\}",
       "endCaptures": {
         "0": {
-          "name": "punctuation.definition.interpolation.end.dramatoric"
+          "name": "punctuation.definition.interpolation.end.dram"
         }
       },
       "patterns": [
@@ -222,62 +222,62 @@
       ]
     },
     "variation": {
-      "name": "string.interpolated.dramatoric",
+      "name": "string.interpolated.dram",
       "begin": "\\[\\[",
       "beginCaptures": {
         "0": {
-          "name": "punctuation.definition.variation.begin.dramatoric"
+          "name": "punctuation.definition.variation.begin.dram"
         }
       },
       "end": "\\]\\]",
       "endCaptures": {
         "0": {
-          "name": "punctuation.definition.variation.end.dramatoric"
+          "name": "punctuation.definition.variation.end.dram"
         }
       },
       "patterns": [
         {
-          "name": "punctuation.separator.variation.dramatoric",
+          "name": "punctuation.separator.variation.dram",
           "match": "\\|"
         }
       ]
     },
     "parenthetical": {
-      "name": "comment.block.parenthetical.dramatoric",
+      "name": "comment.block.parenthetical.dram",
       "match": "\\([^)]*\\)"
     },
     "expression": {
       "patterns": [
         {
-          "name": "variable.language.dramatoric",
+          "name": "variable.language.dram",
           "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
         },
         {
-          "name": "constant.numeric.dramatoric",
+          "name": "constant.numeric.dram",
           "match": "-?(?:0x[0-9a-fA-F]+|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)"
         },
         {
-          "name": "string.quoted.double.dramatoric",
+          "name": "string.quoted.double.dram",
           "match": "\"(?:\\\\.|[^\"])*\""
         },
         {
-          "name": "string.quoted.single.dramatoric",
+          "name": "string.quoted.single.dram",
           "match": "'(?:\\\\.|[^'])*'"
         },
         {
-          "name": "constant.language.dramatoric",
+          "name": "constant.language.dram",
           "match": "\\b(?:true|false|null)\\b"
         },
         {
-          "name": "support.function.dramatoric",
+          "name": "support.function.dram",
           "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\()"
         },
         {
-          "name": "variable.other.dramatoric",
+          "name": "variable.other.dram",
           "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
         },
         {
-          "name": "keyword.operator.dramatoric",
+          "name": "keyword.operator.dram",
           "match": "==|!=|<=|>=|<|>|\\+|-|\\*|/|%|\\.|,"
         }
       ]
