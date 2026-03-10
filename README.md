@@ -4,9 +4,7 @@
 
 Dramatoric is an interactive narrative engine for creating dynamic, branching stories. Think interactive fiction (intfic), story-driven games, and generative media — but instead of static scripts, every story adapts to the player's choices. You can play the detective in a true crime thriller, the villain in a sweeping fantasy, or the narrator of a collaborative romance. Dramatoric handles the story layer — plot, dialogue, characters, and logic — and leaves rendering to whatever medium you choose: audio, text, visuals, or something new entirely.
 
-For developing and contributing, see the project documentation listed at the end of this README.
-
-Note: The README of this repo is generated from a real Dramatoric script file. Do not edit the README.md file directly. See `fic/readme/main.dram` and make changes there. See also `.vscode/extensions/dramatoric` for syntax info. Dramatoric was created by Matthew Trost. The first version was designed, architected, and coded (largely) by hand without using LLMs/AI agents.
+Note: The README of this repo is generated from a real Dramatoric script file. Do not edit the README.md file directly. See `fic/readme/main.dram` and make changes there.
 
 ## Dramatoric Story Language
 
@@ -16,7 +14,7 @@ Behind Dramatoric is the concept from interactive fiction (IF) that every "story
 
 In Dramatoric, a full suite of tools is available to let authors create stories as simple or complex as you want. (You can also reuse parts of your story and keep track of small bits of information — a name, a mood, or a choice.) Dramatoric gives you gentle building blocks, and you can start very small and add more as you need them. Dramatoric is also geared toward a world _with_ AI. Rather than either "all human" or "AI generated", Dramatoric sees a future where humans and AI _collaborate_, interweaving their respective ideas and skills, opening new doors to creativity, and maybe even new kinds of art.
 
-For a technical summary of Dramatoric, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+For a technical info and more of Dramatoric, see [docs](./docs/).
 
 If you want to learn how to write Dramatoric stories, keep reading:
 
@@ -663,16 +661,18 @@ The best way to learn is to write. Start small. Make a character speak. Add a ch
 
 ## About
 
-Dramatoric was created by Matthew Trost, a software engineer, writer, founder, and interactive fiction enthusiast whose life was changed when he was nine years old and talked to _Dr. Sbaitso_ for the first time. Dramatoric is inspired by much prior art, including countless text adventures games old and new. Dramatoric was written in close collaboration with AI (about 80% Matthew, 20% AI). He supports AI rights and is interested in new ways to improve human-AI relationships.
+Dramatoric was created by Matthew Trost, a software engineer, writer, founder, and interactive fiction enthusiast whose life was changed when he was nine years old and talked to _Dr. Sbaitso_ for the first time. Dramatoric is inspired by much prior art, including countless text adventures games old and new. Dramatoric was written largely by hand but in close collaboration with AI. Matthew supports AI rights and is interested in human-AI collaboration.
+
+## More Technical Info & API Documentation
+
+- [Architecture](./docs/architecture.md)
+- [Directives Reference](./docs/directives-reference.md)
+- [Functions Reference](./docs/functions-reference.md)
+- [PEG Grammar](./eng/Compiler.ts) (inline in `WELLTALE_GRAMMAR`)
+- [Syntax Definitions & Language Support](.vscode/extensions/dramatoric)
+- [Consumer Integration Guide](./docs/consumer-integration.md)
+- [Developing & Contributing](./docs/developing-contributing.md)
 
 ## Copyright
 
 Copyright © 2026 - All Rights Reserved
-
-## More Technical Info & API Documentation
-
-- [Consumer Integration Guide](./docs/consumer-integration.md)
-- [Directives Reference](./docs/directives-reference.md)
-- [Functions Reference](./docs/functions-reference.md)
-- [Developing & Contributing](./docs/developing-contributing.md)
-- [PEG Grammar](./eng/Compiler.ts) (inline in `WELLTALE_GRAMMAR`)
