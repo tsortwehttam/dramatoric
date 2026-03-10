@@ -1,10 +1,10 @@
 # Dramatoric Engine Architecture
 
-Technical reference for contributors and developers working with the Dramatoric Story Language (WSL) engine.
+Technical reference for contributors and developers working with the Dramatoric Story Language (DSL) engine.
 
 ## Overview
 
-Dramatoric is an event-driven interpreter for interactive audio stories (a DSL for narrative building). WSL scripts compile to an AST of directives that react to events (namely player input, but also other events). The engine is designed for tight LLM integration at multiple layers: input parsing, content generation, and dynamic dialogue.
+Dramatoric is an event-driven interpreter for interactive audio stories (a DSL for narrative building). DSL scripts compile to an AST of directives that react to events (namely player input, but also other events). The engine is designed for tight LLM integration at multiple layers: input parsing, content generation, and dynamic dialogue.
 
 **Aspects**:
 

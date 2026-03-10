@@ -8,7 +8,7 @@ Note: The README of this repo is generated from a real Dramatoric script file. D
 
 ## Dramatoric Story Language
 
-The foundation of Dramatoric is Dramatoric Story Language (WSL), a simple, fun, readable way to write interactive stories. You write lines of dialogue alongside small blocks of logic that say who is speaking and what should happen next. It’s meant to feel like writing a script, with just a few extra tools that make your story respond to the player. By writing in Dramatoric, your story's dialogue, pacing, and branching logic come alive on-demand when the story is played — rendered in whatever medium your project targets.
+The foundation of Dramatoric is Dramatoric Story Language (DSL), a simple, fun, readable way to write interactive stories. You write lines of dialogue alongside small blocks of logic that say who is speaking and what should happen next. It’s meant to feel like writing a script, with just a few extra tools that make your story respond to the player. By writing in Dramatoric, your story's dialogue, pacing, and branching logic come alive on-demand when the story is played — rendered in whatever medium your project targets.
 
 Behind Dramatoric is the concept from interactive fiction (IF) that every "story" is really a script that decides how to react to feedback from the reader/listener/viewer. In most traditional stories, the feedback is assumed. In Dramatoric and other interactive fiction engines, it's dynamic. Instead of one fixed path, you can listen for what the player says and choose what to do. A story can greet someone differently, ask a question, or end when the player says a special word.
 
