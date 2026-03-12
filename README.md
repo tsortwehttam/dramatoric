@@ -8,13 +8,11 @@ Note: The README of this repo is generated from a real Dramatoric script file. D
 
 ## Dramatoric Story Language
 
-The foundation of Dramatoric is Dramatoric Story Language (DSL), a simple, fun, readable way to write interactive stories. You write lines of dialogue alongside small blocks of logic that say who is speaking and what should happen next. It’s meant to feel like writing a script, with just a few extra tools that make your story respond to the player. By writing in Dramatoric, your story's dialogue, pacing, and branching logic come alive on-demand when the story is played — rendered in whatever medium your project targets.
+Stories are written in Dramatoric Story Language (DSL), which reads like a script with a bit of logic mixed in. You write dialogue, add branching and variables, and optionally hand lines off to an AI for improvisation. The engine handles execution; rendering is up to whatever medium you target.
 
-Behind Dramatoric is the concept from interactive fiction (IF) that every "story" is really a script that decides how to react to feedback from the reader/listener/viewer. In most traditional stories, the feedback is assumed. In Dramatoric and other interactive fiction engines, it's dynamic. Instead of one fixed path, you can listen for what the player says and choose what to do. A story can greet someone differently, ask a question, or end when the player says a special word.
+Dramatoric is built for human-AI collaboration. You can write every word yourself, let AI generate character dialogue, or land anywhere in between. Start small, add complexity as you need it.
 
-In Dramatoric, a full suite of tools is available to let authors create stories as simple or complex as you want. (You can also reuse parts of your story and keep track of small bits of information — a name, a mood, or a choice.) Dramatoric gives you gentle building blocks, and you can start very small and add more as you need them. Dramatoric is also geared toward a world _with_ AI. Rather than either "all human" or "AI generated", Dramatoric sees a future where humans and AI _collaborate_, interweaving their respective ideas and skills, opening new doors to creativity, and maybe even new kinds of art.
-
-For technical info and more about Dramatoric, see [docs](./docs/).
+For technical docs, see [docs](./docs/).
 
 If you want to learn how to write Dramatoric stories, keep reading:
 
@@ -25,7 +23,7 @@ NARRATOR:
 It's a bright autumn evening in the assembly room.
 ```
 
-At its simplest, Dramatoric story scripts are made up of stanzas like this, with a _heading_ and a _body_. Headings have to end with a colon (like `My Stanza:`), but other than that, they can be any set of numbers, letters, spaces, and even a limited set of symbols. And the body can, in general, be any text you want. When players experience your story, this stanza is performed as the `NARRATOR:` — the body text delivered in the narrator's voice and style.
+Dramatoric scripts are made up of stanzas: a _heading_ followed by a _body_. Headings end with a colon (like `My Stanza:`) and can contain letters, numbers, spaces, and some symbols. The body is whatever text you want. When the story plays, this stanza is performed as the `NARRATOR:`, delivered in that character's voice and style.
 
 ```well
 NARRATOR:
@@ -35,7 +33,7 @@ NARRATOR:
 You have just arrived, your gloves still cool from the night air.
 ```
 
-We need to emphasize one very important bit: The colon is a very special thing in Dramatoric Story Language. You have to put them in the right place for Dramatoric to understand your story structure. You _must_ use a colon to mark your stanza's heading. But you _cannot_ use a colon in your stanza body — unless you put a backslash `\` right before it. See how it works below:
+One thing to watch: colons are how Dramatoric identifies structure. Every heading needs one. But you _cannot_ use a colon in your stanza body unless you escape it with a backslash (`\`):
 
 ```well
 NARRATOR:
@@ -45,7 +43,7 @@ SOUND: loop true; duration 20s
 The gentle din of a high society social gathering
 ```
 
-Stanzas can be multiple lines long, as long as each line immediately follows the preceding one. There are also special stanzas, like `SOUND:`, for things other than spoken words — in this case, creating a sound effect. You can use `SOUND:` anywhere in your story. Also note that `SOUND:` has _settings_ which control their effects. Settings are special instructions, on the same line as the heading, that control how the stanza behaves. Each setting is separated by a semicolon character. You can learn more about settings in the Directives Reference in the docs listed at the end of this README.
+Stanzas can be multiple lines, as long as each line immediately follows the previous one. Special stanzas like `SOUND:` produce things other than speech (here, a sound effect). Notice the _settings_ after `SOUND:` on the same line (`loop true; duration 20s`). Settings control how a stanza behaves, separated by semicolons. See the Directives Reference for the full list.
 
 ### Capturing Player Input
 
@@ -64,11 +62,9 @@ decision = CAPTURE:
 Convert the input into either "talk" or "ignore"
 ```
 
-Dramatoric is for interactive stories, so we need some way to get the player's input. Above, we see an example of this using another special stanza heading, `CAPTURE:`. Note how there's some stuff _before_ the `CAPTURE:` heading. That `decision =` part means "store the input into a _variable_ called `decision`. We can reference `decision` later in our script. However, there's a problem:
+`CAPTURE:` grabs the player's input. The `decision =` prefix stores that input into a variable called `decision` for later use.
 
-Fundamentally, the player has two choices: they can `"talk"` to Mr. Darcy, or `"ignore"` him. But suppose the player says "Talk to them!" or "I want to speak to them" or "start conversation" or "flirt". All these are different ways of saying the same thing. Since it would suck to handle all of these possibilities — writing the code by hand for each case — Dramatoric has a built-in way to let you ask an AI for help understanding player input, right in your script.
-
-See that part after `CAPTURE:`? That stanza tells Dramatoric's AI to convert _whatever the player's input is_ into a specific decision: `"talk"` or `"ignore"` — whichever fits best. That result will be stored in the `decision` variable, accessible as `decision.result`. (And you can get the user's original, un-converted input using `decision.value` if you need it.)
+The player has two real choices here: `"talk"` or `"ignore"`. But they might type "Talk to them!" or "I want to speak to them" or "flirt." You don't want to handle every phrasing by hand. That's where the body of the `CAPTURE:` comes in: it tells Dramatoric's AI to normalize the input into `"talk"` or `"ignore"`, whichever fits. The normalized result is stored as `decision.result`. (The raw input is still available as `decision.value`.)
 
 ### Conditional Logic
 
@@ -117,41 +113,26 @@ IF: decision.result == "talk" DO
 END
 ```
 
-Here's another important type of stanza: `IF:`. With `IF:`, you can add _conditional logic_ to your story. Let's break down this syntax, since we're introducing a few concepts that are important to understand:
+`IF:` adds conditional logic. A few new concepts appear in the example above:
 
-- The above example shows a _comment_. A comment is an internal note that only
-  you, as the author, can see. Comments are not played to the player. Anywhere
-  in your script, you can write `//` to start a comment. You can use comments
-  for reminders, todos, or really anything you want.
+- `//` starts a _comment_, visible only to the author, never played.
 
-- Earlier, we talked about how stanzas can have _parameters_. In the case of the
-  above `IF:`, we have one parameter, written like so: `decision.result ==
-  "ignore"`. This is a bit of _code_ we use to evaluate whether the player wants
-  to talk to Mr. Darcy, or ignore. There are a few places in Dramatoric where you
-  can write code, and the parameter part of an `IF:` stanza is one of them.
+- The expression after `IF:` (e.g. `decision.result == "ignore"`) is a bit of
+  code that gets evaluated at runtime.
 
-- Sometimes, stanzas need to contain other stanzas. For that, we use `DO` and
-  `END`. `DO...END` are just special markers that help the Dramatoric engine
-  understand "whatever is in here should be treated as a single chunk of
-  content." In the case above, we use `DO...END` to enclose some more story
-  narration. You can put any content you want into the block, even multiple
-  stanzas.
+- `DO` and `END` group stanzas into a block. You can nest anything inside.
 
-- `MUSIC:` is another special stanza. In the body of a `MUSIC:` stanza, you can
-  simply describe what type of music you want — and Dramatoric will generate it
-  for you.
+- `MUSIC:` generates music from a text description.
 
-- Parentheses can be used to control characters' emotional nuance and tone.
-  Content in parens is never delivered to the player; it's only used to shape
-  emotional inflection.
+- Parentheses control emotional tone. Content in parens is never spoken to the
+  player; it only shapes inflection.
 
-- The double curly braces syntax `{{like this}}` can be used to inject dynamic
-  values into your story. Here, we reference the `.value` of the `name` variable
-  that we captured above.
+- `{{like this}}` injects dynamic values. Here, `{{name.value}}` inserts the
+  captured name.
 
 ### Variables and Branching
 
-As the story grows, you'll need to keep track of things — not just what the player said, but facts about the world you're building. That's where `SET:` comes in. You'll also want to branch your story in different directions, showing one path _or_ another, depending on what happened before. Let's see how these pieces fit together:
+`SET:` stores variables. `ELSE:` gives you alternate branches. Here they are together:
 
 ```well
 // Continuing our scene... Mr. Darcy speaks up.
@@ -191,19 +172,15 @@ ELSE: DO
 END
 ```
 
-Variables are just named boxes that hold values. You can put words in them (like `"cold"`), numbers (like `42`), or true/false values (like `true`). Once you've set a variable, you can use it anywhere — in your dialogue with `{{darcyMood}}`, or in conditions to decide what happens next.
+Variables hold strings (`"cold"`), numbers (`42`), or booleans (`true`). Use them in dialogue with `{{darcyMood}}` or in conditions.
 
-- `ELSE:` is a heading that can appear inside of an `IF:` block, indicating an
-  alternate path to take if the condition wasn't met. In our story, if the
-  player ignores the gentlemen, the evening ends early with `EXIT:`. Otherwise,
-  they approach and the story continues. Note that `ELSE: DO` requires its own
-  `END`, and then the outer `IF:` block needs another `END` to close it.
+`ELSE:` goes inside an `IF:` block for the alternate path. Note that `ELSE: DO` requires its own `END`, and the outer `IF:` also needs one.
 
-Technical Note: Note that when we store input using `CAPTURE:`, the value we get isn't just a single number or text string, but what we refer to in coding as an _object_. That is it's a value that actually contains multiple sub-values or properties. The sub-properties can be accessed using that dot syntax (like `name.value`). However, when we create a variable with `SET:`, we're storing the simple value itself — _not_ an object — so we don't need to access it with the `.value` property.
+Technical note: `CAPTURE:` stores an _object_ with sub-properties (accessed via dot syntax, like `name.value`). `SET:` stores a plain value directly, so no `.value` needed.
 
 ### Inline Variation
 
-Whew. With that out of the way, now, here's something fun. Sometimes you want to add small bits of variety to your story without writing a whole new branch. Maybe a character says things slightly differently each time, or you want to describe a scene in a few different ways to keep things fresh. Dramatoric has a shorthand for this: double brackets. This is known as "dynamic content variation" or DCV.
+Sometimes you want small bits of variety without a full branch. Double brackets give you inline randomization, called "dynamic content variation" (DCV).
 
 ```well
 // As the conversation continues, Bingley fills the silence with small talk.
@@ -224,13 +201,13 @@ NARRATOR:
 Mr. Darcy sighs. This is the {{^first|second|third}} time you've tested his patience tonight.
 ```
 
-These small tools — `SET:` for memory, `IF:` and `ELSE:` for branching, and `{{...}}` for variety — give you a lot of power without a lot of complexity. You can start simple and layer in more as your story grows.
+`SET:` for memory, `IF:`/`ELSE:` for branching, `{{...}}` for variety. Simple pieces, but they combine well.
 
 ### Loops and Counters
 
-Sometimes you want a scene to repeat — a back-and-forth conversation, a tense negotiation, or a game that keeps going until someone wins or gives up. For that, Dramatoric has `LOOP:`. And when you want to change a number gradually — tracking a character's mood, health, or patience — you can use operators like `INCR:` and `DECR:` to nudge values up or down without rewriting them from scratch.
+`LOOP:` repeats a block while a condition holds. `INCR:` and `DECR:` adjust numeric variables without rewriting them.
 
-Let's put Mr. Darcy's patience to the test. The player can say whatever they like, and we'll ask the AI to judge how irritating it would be to an uptight gentleman. If Mr. Darcy's irritation rises too high, he'll storm off. If the player says goodbye first, the loop ends gracefully.
+Here, we loop a conversation with Mr. Darcy. The AI scores how irritating the player's input is. If irritation hits 1.0, Darcy storms off. If the player says goodbye, the loop exits early.
 
 ```well
 SET: irritation 0
@@ -293,19 +270,17 @@ IF: irritation >= 1.0 DO
 END
 ```
 
-A few things to notice here. `LOOP:` keeps running its block as long as the condition (`irritation < 1.0`) is true. Each time through, we capture the player's input and ask the AI to score it. The `INCR: irritation {{reply.result}}` line adds that score to the running total — so if the player says something worth 0.3, and then something worth 0.4, irritation becomes 0.7. When it hits 1.0 or higher, the loop condition fails and we fall through to the finale.
+`LOOP:` runs its block while the condition holds. `INCR: irritation {{reply.result}}` adds the AI's score to the running total each iteration. When irritation reaches 1.0, the condition fails and execution falls through.
 
-`BREAK:` is your escape hatch from the `LOOP:`. If the player says goodbye, we don't want to keep looping — we want to end the conversation cleanly. `BREAK:` jumps out of the nearest loop immediately.
+`BREAK:` exits the nearest loop immediately.
 
-`CASE:...WHEN:...END` is another way to write _conditional logic_. It can be cleaner than nested `IF:` statements, when your story has to think about multiple pathways. `CASE:` evaluates the conditional parameter once, then checks each `WHEN:` clause in order until one matches. If nothing matches, `ELSE:` runs as a fallback.
+`CASE:...WHEN:...END` is cleaner than nested `IF:` for multi-way branching. It evaluates once and checks each `WHEN:` in order. `ELSE:` is the fallback.
 
-You also saw how the double-brace syntax can do more than just print variables — you can put small code snippets inside, including function calls. Dramatoric comes with a library of helper functions for strings (`strTrim()`, `toTitle()`, `toPlural()`), math (`calcFloor()`, `clamp()`, `getRoundTo()`), and more. To read more about scripting and functions, see the Functions Reference in the docs listed at the end of this README.
+Double braces can also contain expressions and function calls. Dramatoric includes helpers for strings (`strTrim()`, `toTitle()`, `toPlural()`), math (`calcFloor()`, `clamp()`, `getRoundTo()`), and more. See the Functions Reference for the full list.
 
 ### Embedded Conditionals
 
-So far, we've been using `IF:` and `CASE:` to control our overall story flow. But there's another trick: you can also embed them _inside_ a stanza's body. This lets you include or exclude bits and pieces of what a character says, based on the current state of your story. It's a great way to vary your dialog and narration without a lot of visual clutter in your story script.
-
-After the tense exchange with Mr. Darcy, Mr. Bingley tries to smooth things over. His response should acknowledge what just happened:
+You can also embed `IF:` and `CASE:` _inside_ a stanza's body to include or exclude parts of what a character says based on state. Bingley's response here varies depending on what happened with Darcy:
 
 ```well
 // Bingley's response varies based on how things went with Darcy.
@@ -325,9 +300,9 @@ MR. BINGLEY: DO
 END
 ```
 
-The player will experience different things depending on what happened — if Darcy stormed off, Bingley apologizes; if the player charmed him, Bingley notices. But if neither condition is true, that section is simply absent. The speech flows naturally either way.
+If Darcy stormed off, Bingley apologizes. If the player charmed him, Bingley notices. If neither is true, those lines are absent. The speech reads naturally either way.
 
-By the way, using `CASE:` inline is a great choice when you need to pick between several options, embedding conditions inside a longer speech to weave in details that depend on the story's state:
+`CASE:` works inline too, which is useful for picking between several variants inside a longer speech:
 
 ```well
 // The narrator reflects on the encounter.
@@ -352,7 +327,7 @@ NARRATOR: DO
 END
 ```
 
-Dramatoric has a special syntax — double angle brackets (`<< >>`) — for sending instructions to the AI inline in your script. These are called _LLM blocks_, and we'll explore them in depth in the next section. But here's a preview of one powerful use: you can put an LLM block directly inside a conditional expression. The AI evaluates the statement against current story context (including recent conversation and state) and returns a true/false result for the `IF:`.
+Double angle brackets (`<< >>`) send instructions to the AI inline. These are called _LLM blocks_, covered in the next section. One use worth previewing: you can put an LLM block inside a conditional. The AI evaluates the statement against story context and returns a true/false result for the `IF:`.
 
 ```well
 NARRATOR: DO
@@ -367,9 +342,9 @@ END
 
 ### AI-Powered Dialogue with LLM Blocks
 
-Up until now, every line of dialogue has been something you — the author — wrote by hand. But what if you could describe a character and let the AI write their lines for you? That's one of the things LLM blocks can do.
+Every line of dialogue so far has been hand-written. LLM blocks let you describe a character and have the AI write their lines instead.
 
-As introduced above, an LLM block is any content wrapped in double angle brackets: `<< like this >>`. When Dramatoric sees an LLM block inside a stanza, it hands the reins to the AI. Instead of speaking your exact words, the character will say whatever the AI generates — staying in character based on your instructions.
+An LLM block is content wrapped in `<< like this >>`. When Dramatoric sees one inside a stanza, the AI generates the dialogue, staying in character based on your instructions.
 
 ```well
 MR. BINGLEY:
@@ -380,9 +355,9 @@ You speak warmly and with genuine enthusiasm.
 >>
 ```
 
-When this stanza runs, the player won't see those instructions — they'll experience Mr. Bingley saying something friendly and in character. The AI uses your description as a guide, and it also looks at the conversation so far, so Mr. Bingley's response will fit the moment.
+The player never sees the instructions. They hear Mr. Bingley say something friendly and in character. The AI uses both your description and the conversation history, so the response fits the moment.
 
-On top of that, you can even put conditionals _inside_ a LLM block. Since Dramatoric processes the block's contents before sending them to the AI, you can adjust the character's instructions based on story state:
+You can put conditionals inside an LLM block too. Dramatoric resolves them before sending anything to the AI, so you can adjust instructions based on story state:
 
 ```well
 MR. DARCY: DO
@@ -402,13 +377,13 @@ MR. DARCY: DO
 END
 ```
 
-The AI never sees the `IF:` blocks themselves — it only sees the final, assembled instructions. If `darcyMood` is `"hostile"`, Mr. Darcy's persona includes the line about being irritated. If it's `"curious"`, he gets the warmer instruction instead. This lets you shape how a character behaves without writing every possible line yourself.
+The AI only sees the final assembled instructions, not the `IF:` blocks. If `darcyMood` is `"hostile"`, Darcy's prompt includes the irritation line. If `"curious"`, he gets the warmer one. You shape behavior without writing every possible line.
 
-As one of Dramatoric's most powerful and unique features, LLM blocks help make your stories feel alive and truly open-ended. You set the guardrails — who the character is, what they know, how they should behave — and the AI fills in the rest. It's like giving stage directions to an actor who improvises within any bounds you choose to set.
+Think of it as stage directions for an actor who improvises. You set the guardrails; the AI fills in the rest.
 
 ### Entities: Persistent Characters
 
-LLM blocks are powerful, but you have to write the full `<< >>` description every time a character speaks. For recurring characters, this gets repetitive. `ENTITY:` lets you define a character once — their personality, their stats — and Dramatoric remembers it all. From that point on, any dialogue stanza with that character's name will automatically speak in character, no `<< >>` needed.
+Writing `<< >>` descriptions every time a recurring character speaks gets old. `ENTITY:` defines a character once, and Dramatoric remembers the rest. After that, any stanza with that character's name auto-generates dialogue from the stored persona.
 
 ```well
 // Mr. Collins arrives! Define him as an entity.
@@ -428,7 +403,7 @@ A portly man in clerical dress bustles toward you with alarming enthusiasm.
 MR. COLLINS:
 ```
 
-When `MR. COLLINS:` appears without a `<< >>` block, Dramatoric looks up his entity and uses the stored persona to generate dialogue. If you don't need stats, you can skip the YAML and write raw persona text:
+`MR. COLLINS:` with no `<< >>` block triggers AI dialogue from the stored persona. If you don't need stats, skip the YAML and write raw persona text:
 
 ```well
 // Without structured data, the whole body is treated as raw persona text.
@@ -439,7 +414,7 @@ ENTITY: MRS. BENNET DO
 END
 ```
 
-Entity stats are accessible with `stat()` and modifiable with `setStat()`. You can also check for an entity's existence with `hasEntity()`. Redeclaring an entity merges new stats into the existing ones and replaces the persona, letting characters evolve as the story progresses:
+Stats are accessible with `stat()` and modifiable with `setStat()`. Check existence with `hasEntity()`. Redeclaring an entity merges new stats and replaces the persona, so characters can evolve mid-story:
 
 ```well
 // Query a stat
@@ -457,7 +432,7 @@ END
 MR. COLLINS:
 ```
 
-A `<< >>` block always takes priority over the entity persona when you need specific control over a single line. Entity bodies also support `{{}}` interpolation, so you can weave dynamic values into character definitions.
+A `<< >>` block always overrides the entity persona for that line. Entity bodies support `{{}}` interpolation too.
 
 ```well
 // << >> overrides the entity's automatic persona for this line.
@@ -465,11 +440,11 @@ MR. COLLINS:
 << Apologize to Mr. Darcy for stepping on his foot. Mention Lady Catherine at least twice. >>
 ```
 
-With entities, your characters carry their identity throughout the story — speaking in character automatically, trackable through stats, and updatable as the narrative demands.
+Entities give characters persistent identity: automatic in-character dialogue, trackable stats, and mid-story updates.
 
 ## Reusable Blocks and Random Variation
 
-As your stories grow, you'll find yourself wanting to reuse certain passages — a recurring greeting, a description of a location, or a dramatic flourish you use in multiple scenes. Rather than copying and pasting, you can define a `BLOCK:` and then `RUN:` it wherever you need it.
+`BLOCK:` defines a reusable passage. `RUN:` executes it wherever you need it.
 
 ```well
 // Define blocks at the top of your story, before they're used.
@@ -488,7 +463,7 @@ RUN: Ballroom Ambience
 RUN: Ballroom Ambience
 ```
 
-Defining a `BLOCK:` doesn't play it — it just saves it for later. When you `RUN:` it, the contents execute as if they were written right there. You can even pass temporary variables into a block:
+Defining a `BLOCK:` saves it without playing it. `RUN:` executes the contents in place. You can pass variables into a block:
 
 ```well
 BLOCK: Character Introduction DO
@@ -500,7 +475,7 @@ RUN: Character Introduction; name "Mr. Collins"; mood "insufferably pleased with
 RUN: Character Introduction; name "Miss Bennet"; mood "quietly observant"
 ```
 
-For adding variety to your story, `VARY:` lets you shuffle, pick from, or randomly omit stanzas. This is perfect for making encounters feel fresh on repeated playthroughs.
+`VARY:` shuffles, picks from, or randomly omits stanzas for replay variety.
 
 ```well
 // SHUFFLE randomizes the order
@@ -540,11 +515,11 @@ VARY: SHUFFLE; OMIT 0.5 DO
 END
 ```
 
-With `SHUFFLE`, the stanzas play in random order. With `PICK 1`, only one is chosen. With `OMIT 0.5`, roughly half are dropped at random. You can combine these — `SHUFFLE; OMIT 0.3` shuffles first, then drops about 30%.
+`SHUFFLE` randomizes order. `PICK 1` selects one at random. `OMIT 0.5` drops roughly half. They compose: `SHUFFLE; OMIT 0.3` shuffles, then drops ~30%.
 
 ## Structured Data and Iteration
 
-Sometimes you need to work with lists of things — characters, items, locations, or choices. `DATA:` lets you define structured information using a simple format, and `EACH:` lets you loop through it. The data inside a `DATA:` block can be written in either JSON or YAML format.
+`DATA:` defines structured data (JSON or YAML). `EACH:` iterates over it.
 
 ```well
 guests = DATA: DO
@@ -573,13 +548,11 @@ EACH: guests DO |guest|
 END
 ```
 
-Each guest gets their own AI-generated greeting, shaped by their individual persona. The `|guest|` part is a special type of syntax also available in Dramatoric that lets you name the current item in the loop — so you can then access `guest.name`, `guest.mood`, `guest.persona`, or any other fields you defined. If you prefer not to use this syntax, you can also refer to the special `$element` and `$index` variables within your loop body.
+Each guest gets an AI-generated greeting from their persona. The `|guest|` syntax names the current loop item, giving you access to `guest.name`, `guest.mood`, etc. You can also use the built-in `$element` and `$index` variables instead.
 
 ## Event Listeners
 
-Most of the time, your story flows from top to bottom — one stanza after another. But sometimes you want things to happen in the background, or only once, or in response to something the player does without interrupting the main flow. That's where event listeners come in.
-
-`ONCE:` is similar to `ON:`, but it only runs once in the entire lifetime of the story. It's perfect for adding introductory content:
+Stories flow top to bottom, but sometimes you need things to happen in the background or in response to events. `ONCE:` runs its block exactly once per session:
 
 ```well
 // Place this at the top of your story
@@ -589,7 +562,7 @@ ONCE: DO
 END
 ```
 
-No matter how many times the player restarts or loops through the story, that welcome plays only once per session. You can also create your own custom events with `EMIT:` and listen for them with `ON:`:
+`EMIT:` fires custom events. `ON:` listens for them:
 
 ```well
 // Define the handler at the top of your story
@@ -607,7 +580,7 @@ IF: irritation >= 1.0 DO
 END
 ```
 
-This lets different parts of your story communicate without being directly connected. The music and narration trigger automatically when Mr. Darcy gets angry, no matter where in the story that happens. If you have an `ON:` handler that should stop listening after it's done its job — like a one-time tutorial or an introduction sequence — use `DONE:` to retire it:
+The music and narration fire automatically whenever Darcy gets angry, regardless of where that happens in the story. `DONE:` retires a handler so it stops listening:
 
 ```well
 // A one-time reaction to the player's first words
@@ -619,11 +592,11 @@ ON: $input DO
 END
 ```
 
-After `DONE:` runs, this handler will never trigger again.
+After `DONE:` runs, this handler never triggers again.
 
 ## Ending the Story
 
-When your story reaches its conclusion — whether triumphant, tragic, or simply complete — use `EXIT:` to signal the end:
+`EXIT:` ends the story:
 
 ```well
 // After the eventful evening, the ball winds down.
@@ -651,17 +624,11 @@ END
 EXIT:
 ```
 
-And with that, your story comes to a close.
-
-## Conclusion
-
-You've now seen the full range of Dramatoric Story Language, from simple dialogue stanzas to AI-powered personas, from loops and conditions to event-driven architecture. The pieces are simple, but they combine into something that can surprise even you, the author.
-
-The best way to learn is to write. Start small. Make a character speak. Add a choice. See what happens. The stories you can tell are limited only by your imagination — and now, with Dramatoric, they can talk back.
+That covers the language. The best way to learn is to write: make a character speak, add a choice, see what happens.
 
 ## About
 
-Dramatoric was created by Matthew Trost, a software engineer, writer, founder, and interactive fiction enthusiast whose life was changed when he was nine years old and talked to _Dr. Sbaitso_ for the first time. Dramatoric is inspired by much prior art, including countless text adventures games old and new. Dramatoric was written largely by hand but in close collaboration with AI. Matthew supports AI rights and is interested in human-AI collaboration.
+Dramatoric was created by Matthew Trost, a software engineer, writer, and interactive fiction enthusiast who talked to _Dr. Sbaitso_ at age nine and never quite got over it. Dramatoric draws on a long history of text adventures and was written largely by hand, in close collaboration with AI.
 
 ## More Technical Info & API Documentation
 
