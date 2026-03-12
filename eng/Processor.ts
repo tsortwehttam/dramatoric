@@ -418,20 +418,24 @@ export async function generateDialogue(
   segments: EmbeddedSegment[],
   persona: string,
   history: StoryEvent[],
+  models: string[] = ["WRITING"],
 ): Promise<string> {
-  const hasPrompt = segments.some((s) => s.kind === "prompt");
-  if (!hasPrompt) {
+  const prompts = segments.filter((s) => s.kind === "prompt");
+  if (!prompts.length) {
     return segments.map((s) => s.value).join("\n");
   }
+
+  const resolveModels = (seg: EmbeddedSegment & { kind: "prompt" }): string[] => {
+    const m = castToString(seg.params.model ?? "");
+    return isBlank(m) ? models : [m];
+  };
 
   const hasText = segments.some((s) => s.kind === "text");
   const screenplay = formatScreenplay(history);
 
   if (!hasText) {
-    const prompt = segments
-      .filter((s) => s.kind === "prompt")
-      .map((s) => s.value)
-      .join("\n");
+    const prompt = prompts.map((s) => s.value).join("\n");
+    const segModels = resolveModels(prompts[0]);
     const fullPersona = persona ? `${persona}\n\n${prompt}` : prompt;
     const instructions = [
       {
@@ -449,7 +453,7 @@ export async function generateDialogue(
         content: screenplay ? `[Prior conversation]\n${screenplay}\n\n${speaker}:` : `${speaker}:`,
       },
     ];
-    const result = await ctx.llm(instructions, {}, { models: ["WRITING"] });
+    const result = await ctx.llm(instructions, {}, { models: segModels });
     return cleanSpokenText(castToString(result ?? ""));
   }
 
@@ -459,6 +463,7 @@ export async function generateDialogue(
       parts.push(cleanSpokenText(seg.value));
       continue;
     }
+    const segModels = resolveModels(seg);
     const before = parts.join(" ").trim();
     const after = segments
       .slice(segments.indexOf(seg) + 1)
@@ -480,7 +485,7 @@ export async function generateDialogue(
         content: screenplay ? `[Prior conversation]\n${screenplay}\n\n${speaker}:` : `${speaker}:`,
       },
     ];
-    const result = await ctx.llm(instructions, {}, { models: ["WRITING"] });
+    const result = await ctx.llm(instructions, {}, { models: segModels });
     parts.push(cleanSpokenText(castToString(result ?? "")));
   }
   return parts.join(" ");

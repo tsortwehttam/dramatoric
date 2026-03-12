@@ -940,7 +940,24 @@ export function buildNodeSchema(extras: string[]) {
 const LLM_BLOCK_OPEN = "<<";
 const LLM_BLOCK_CLOSE = ">>";
 
-export type EmbeddedSegment = { kind: "text"; value: string } | { kind: "prompt"; value: string };
+export type LLMBlockParams = Record<string, SerialValue>;
+
+export type EmbeddedSegment =
+  | { kind: "text"; value: string }
+  | { kind: "prompt"; value: string; params: LLMBlockParams };
+
+const NOOP_EVAL: StoryEvaluatorFunc = () => null;
+
+function parseLLMBlockParams(raw: string): { params: LLMBlockParams; body: string } {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("(")) return { params: {}, body: trimmed };
+  const close = trimmed.indexOf(")");
+  if (close < 0) return { params: {}, body: trimmed };
+  const inner = trimmed.slice(1, close);
+  const body = trimmed.slice(close + 1).trim();
+  const { pairs } = marshallParams(inner, NOOP_EVAL);
+  return { params: pairs, body };
+}
 
 export function extractEmbeddedSegments(text: string): EmbeddedSegment[] {
   const segs: EmbeddedSegment[] = [];
@@ -951,8 +968,11 @@ export function extractEmbeddedSegments(text: string): EmbeddedSegment[] {
     if (close < 0) break;
     const before = text.slice(cursor, open).trim();
     if (before) segs.push({ kind: "text", value: before });
-    const prompt = text.slice(open + LLM_BLOCK_OPEN.length, close).trim();
-    if (prompt) segs.push({ kind: "prompt", value: prompt });
+    const raw = text.slice(open + LLM_BLOCK_OPEN.length, close).trim();
+    if (raw) {
+      const { params, body } = parseLLMBlockParams(raw);
+      if (body) segs.push({ kind: "prompt", value: body, params });
+    }
     cursor = close + LLM_BLOCK_CLOSE.length;
     open = text.indexOf(LLM_BLOCK_OPEN, cursor);
   }

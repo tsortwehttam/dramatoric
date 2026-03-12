@@ -139,12 +139,14 @@ export const fallthru_directive: StoryDirectiveFuncDef = {
 
     // Entity with no <<>> → treat whole body as a single prompt slot
     if (!hasPrompt && !isBlank(persona)) {
-      segments = [{ kind: "prompt", value: "Speak in character." }];
+      segments = [{ kind: "prompt", value: "Speak in character.", params: {} }];
     }
 
+    const model = castToString(pms.pairs.model ?? "");
+    const models = isBlank(model) ? ["WRITING"] : [model];
     const participants = [speaker, ...to];
     const history = filterConversationEvents(ctx.session.history, participants);
-    const text = await generateDialogue(ctx, speaker, segments, persona, history);
+    const text = await generateDialogue(ctx, speaker, segments, persona, history, models);
     ctx.say(speaker, text, eventOpts);
     return [text];
   },
