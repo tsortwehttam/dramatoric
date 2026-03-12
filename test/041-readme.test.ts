@@ -268,7 +268,7 @@ async function test() {
   // Should have: see nothing, dismissive, response (measured), + persona = 4+
   expect(darcyLines.length >= 4, true);
 
-  console.info("[test] Step 14: Persona blocks verified ✓");
+  console.info("[test] Step 14: LLM blocks verified ✓");
 }
 
 test();

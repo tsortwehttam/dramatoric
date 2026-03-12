@@ -2,7 +2,7 @@
 
 <p align="center"> <img src="logo.png" alt="Dramatoric" width="200" /> </p>
 
-Dramatoric is an interactive narrative engine for creating dynamic, branching stories. Think interactive fiction (intfic), story-driven games, and generative media — but instead of static scripts, every story adapts to the player's choices. You can play the detective in a true crime thriller, the villain in a sweeping fantasy, or the narrator of a collaborative romance. Dramatoric handles the story layer — plot, dialogue, characters, and logic — and leaves rendering to whatever medium you choose: audio, text, visuals, or something new entirely.
+Dramatoric is an interactive narrative engine for creating dynamic, branching stories. Think interactive fiction (intfic), story-driven games, and generative media — but with AI-powered dialogue, dynamic rendering, and a scripting language designed for human-AI collaboration. You can play the detective in a true crime thriller, the villain in a sweeping fantasy, or the narrator of a collaborative romance. Dramatoric handles the story layer — plot, dialogue, characters, and logic — and leaves rendering to whatever medium you choose: audio, text, visuals, or something new entirely.
 
 Note: The README of this repo is generated from a real Dramatoric script file. Do not edit the README.md file directly. See `fic/readme/main.dram` and make changes there.
 
@@ -14,7 +14,7 @@ Behind Dramatoric is the concept from interactive fiction (IF) that every "story
 
 In Dramatoric, a full suite of tools is available to let authors create stories as simple or complex as you want. (You can also reuse parts of your story and keep track of small bits of information — a name, a mood, or a choice.) Dramatoric gives you gentle building blocks, and you can start very small and add more as you need them. Dramatoric is also geared toward a world _with_ AI. Rather than either "all human" or "AI generated", Dramatoric sees a future where humans and AI _collaborate_, interweaving their respective ideas and skills, opening new doors to creativity, and maybe even new kinds of art.
 
-For a technical info and more of Dramatoric, see [docs](./docs/).
+For technical info and more about Dramatoric, see [docs](./docs/).
 
 If you want to learn how to write Dramatoric stories, keep reading:
 
@@ -66,9 +66,9 @@ Convert the input into either "talk" or "ignore"
 
 Dramatoric is for interactive stories, so we need some way to get the player's input. Above, we see an example of this using another special stanza heading, `CAPTURE:`. Note how there's some stuff _before_ the `CAPTURE:` heading. That `decision =` part means "store the input into a _variable_ called `decision`. We can reference `decision` later in our script. However, there's a problem:
 
-Fundamentally, the player has two choices: they can `"talk"` to Mr. Darcy, or `"ignore"` him. But suppose the player says "Talk to them!" or "I want to speak to them" or "start conversation" or "flirt". All these are different ways of saying the same thing. Since it would suck to handle all of these possibilities — writing the code by hand fo each case — Dramatoric has a built-in way to let you ask an AI for help understanding player input, right in your script.
+Fundamentally, the player has two choices: they can `"talk"` to Mr. Darcy, or `"ignore"` him. But suppose the player says "Talk to them!" or "I want to speak to them" or "start conversation" or "flirt". All these are different ways of saying the same thing. Since it would suck to handle all of these possibilities — writing the code by hand for each case — Dramatoric has a built-in way to let you ask an AI for help understanding player input, right in your script.
 
-See that part after `CAPTURE:`? That stanza tells Dramatoric's AI to convert _whatever the player's input is_ into a specific decision: `"talk"` or `"ignore"` — whichever fits bets. That result will be stored in the `decision` variable, accessible as `decision.result`. (And you can get the user's original, un-converted input using `decision.value` if you need it.)
+See that part after `CAPTURE:`? That stanza tells Dramatoric's AI to convert _whatever the player's input is_ into a specific decision: `"talk"` or `"ignore"` — whichever fits best. That result will be stored in the `decision` variable, accessible as `decision.result`. (And you can get the user's original, un-converted input using `decision.value` if you need it.)
 
 ### Conditional Logic
 
@@ -126,7 +126,7 @@ Here's another important type of stanza: `IF:`. With `IF:`, you can add _conditi
 
 - Earlier, we talked about how stanzas can have _parameters_. In the case of the
   above `IF:`, we have one parameter, written like so: `decision.result ==
-"ignore"`. This is a bit of _code_ we use to evaluate whether the player wants
+  "ignore"`. This is a bit of _code_ we use to evaluate whether the player wants
   to talk to Mr. Darcy, or ignore. There are a few places in Dramatoric where you
   can write code, and the parameter part of an `IF:` stanza is one of them.
 
@@ -303,7 +303,7 @@ You also saw how the double-brace syntax can do more than just print variables �
 
 ### Embedded Conditionals
 
-So far, we've been using `IF:` and `CASE:` as to control our overall story flow. But there's another trick: you can also embed them _inside_ a stanza's body. This lets you include or exclude bits and pieces of what a character says, based on the current state of your story. It's a great way to vary your dialog and narration without a lot of visual clutter in your story script.
+So far, we've been using `IF:` and `CASE:` to control our overall story flow. But there's another trick: you can also embed them _inside_ a stanza's body. This lets you include or exclude bits and pieces of what a character says, based on the current state of your story. It's a great way to vary your dialog and narration without a lot of visual clutter in your story script.
 
 After the tense exchange with Mr. Darcy, Mr. Bingley tries to smooth things over. His response should acknowledge what just happened:
 
@@ -352,7 +352,7 @@ NARRATOR: DO
 END
 ```
 
-You can also use `<< >>` directly inside a conditional expression. In that case, the model evaluates the statement against current story context (including recent conversation and state) and returns a true/false result for the `IF:`.
+Dramatoric has a special syntax — double angle brackets (`<< >>`) — for sending instructions to the AI inline in your script. These are called _LLM blocks_, and we'll explore them in depth in the next section. But here's a preview of one powerful use: you can put an LLM block directly inside a conditional expression. The AI evaluates the statement against current story context (including recent conversation and state) and returns a true/false result for the `IF:`.
 
 ```well
 NARRATOR: DO
@@ -365,11 +365,11 @@ NARRATOR: DO
 END
 ```
 
-### AI-Powered Dialogue with Persona Blocks
+### AI-Powered Dialogue with LLM Blocks
 
-Up until now, every line of dialogue has been something you — the author — wrote by hand. But what if you could describe a character and let the AI write their lines for you? That's what LLM blocks are for.
+Up until now, every line of dialogue has been something you — the author — wrote by hand. But what if you could describe a character and let the AI write their lines for you? That's one of the things LLM blocks can do.
 
-A LLM block is a short description of a character, wrapped in double angle brackets: `<< like this >>`. When Dramatoric sees a LLM block inside a stanza, it hands the reins to the AI. Instead of speaking your exact words, the character will say whatever the AI generates — staying in character based on your description.
+As introduced above, an LLM block is any content wrapped in double angle brackets: `<< like this >>`. When Dramatoric sees an LLM block inside a stanza, it hands the reins to the AI. Instead of speaking your exact words, the character will say whatever the AI generates — staying in character based on your instructions.
 
 ```well
 MR. BINGLEY:
@@ -408,7 +408,7 @@ As one of Dramatoric's most powerful and unique features, LLM blocks help make y
 
 ### Entities: Persistent Characters
 
-Persona blocks are powerful, but you have to write the full `<< >>` description every time a character speaks. For recurring characters, this gets repetitive. `ENTITY:` lets you define a character once — their personality, their stats — and Dramatoric remembers it all. From that point on, any dialogue stanza with that character's name will automatically speak in character, no `<< >>` needed.
+LLM blocks are powerful, but you have to write the full `<< >>` description every time a character speaks. For recurring characters, this gets repetitive. `ENTITY:` lets you define a character once — their personality, their stats — and Dramatoric remembers it all. From that point on, any dialogue stanza with that character's name will automatically speak in character, no `<< >>` needed.
 
 ```well
 // Mr. Collins arrives! Define him as an entity.
