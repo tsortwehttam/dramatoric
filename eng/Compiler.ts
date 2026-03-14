@@ -30,6 +30,8 @@ import {
   StoryMeta,
   StorySources,
   TEXT_TYPE,
+  TEXTVAR_TYPE,
+  VAR_TYPE,
   WELL_EXT,
   WellNode,
 } from "./Helpers";
@@ -330,10 +332,27 @@ export function compileCartridge(cartridge: StoryCartridge, errors: ErrorBase[] 
   });
   root.kids.push(wrap);
 
+  walkTree(root, (node) => {
+    if (node.type === TEXT_TYPE && node.vars.length > 0) {
+      node.type = TEXTVAR_TYPE;
+    }
+  });
+
   // Quick static analysis of script-like expressions
   const runner = createLoadedRunner(createPRNG("compile"));
   const vars = collectCompileVars(root, meta);
   walkTree(root, (node) => {
+    const suspicious = findSuspiciousImplicitBodyLine(node);
+    if (suspicious) {
+      errors.push({
+        type: "warning-implicit-body-stanza",
+        name: node.type,
+        note: `Suspicious body line parsed as text: ${suspicious}. Did you mean to add a blank line or use DO ... END?`,
+      });
+    }
+    if (node.type === VAR_TYPE || node.type === TEXTVAR_TYPE) {
+      return;
+    }
     const pms = marshallParams(node.args, () => "");
     pms.groups.forEach((group, idx) => {
       if (looksLikeScriptExpression(group)) {
@@ -348,6 +367,25 @@ export function compileCartridge(cartridge: StoryCartridge, errors: ErrorBase[] 
     console.info("[compiler] errors", errors);
   }
   return { root, meta, errs: errors };
+}
+
+const SUSPICIOUS_STANZA_LINE =
+  /^([A-Za-z_$][A-Za-z0-9_$]*(?:\[\])?(?:\s*,\s*[A-Za-z_$][A-Za-z0-9_$]*(?:\[\])?)*)\s*=\s*[A-Z][A-Z0-9 _-]*:|^[A-Z][A-Z0-9 _-]*:/;
+
+function findSuspiciousImplicitBodyLine(node: WellNode): string | null {
+  if (node.kids.length < 1) {
+    return null;
+  }
+  if (!node.kids.every((kid) => kid.type === TEXT_TYPE)) {
+    return null;
+  }
+  for (const kid of node.kids) {
+    const line = kid.args.trim();
+    if (SUSPICIOUS_STANZA_LINE.test(line)) {
+      return line;
+    }
+  }
+  return null;
 }
 
 function collectCompileVars(root: WellNode, meta: StoryMeta): Record<string, SerialValue> {
@@ -391,26 +429,27 @@ export function serializeNode(node: WellNode, indent: string = ""): string {
     lines.push(indent + node.args);
     return lines.join("\n");
   }
+  const rawType = node.type === TEXTVAR_TYPE ? "TEXT" : node.type;
   const varsPrefix =
     node.vars.length > 0 ? node.vars.map((v) => v.name + (v.type === "arr" ? "[]" : "")).join(", ") + " = " : "";
   const hasKids = node.kids.length > 0;
   const eaveStr = node.eave ? ` |${node.eave}|` : "";
   const allKidsAreText = hasKids && node.kids.every((k) => k.type === TEXT_TYPE);
   if (hasKids && allKidsAreText) {
-    const header = `${indent}${varsPrefix}${node.type}:${node.args ? " " + node.args : ""}`;
+    const header = `${indent}${varsPrefix}${rawType}:${node.args ? " " + node.args : ""}`;
     lines.push(header);
     for (const kid of node.kids) {
       lines.push(serializeNode(kid, indent));
     }
   } else if (hasKids) {
-    const header = `${indent}${varsPrefix}${node.type}:${node.args ? " " + node.args : ""} DO${eaveStr}`;
+    const header = `${indent}${varsPrefix}${rawType}:${node.args ? " " + node.args : ""} DO${eaveStr}`;
     lines.push(header);
     for (const kid of node.kids) {
       lines.push(serializeNode(kid, indent + "  "));
     }
     lines.push(indent + "END");
   } else {
-    const header = `${indent}${varsPrefix}${node.type}:${node.args ? " " + node.args : ""}`;
+    const header = `${indent}${varsPrefix}${rawType}:${node.args ? " " + node.args : ""}`;
     lines.push(header);
   }
   return lines.join("\n");

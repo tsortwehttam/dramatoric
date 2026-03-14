@@ -21,6 +21,8 @@ export const WELL_DIRECTIVES = [
   "BLOCK",
   "EVENT",
   "SET",
+  "VAR",
+  "TEXT",
   "INPUT",
   "LLM",
   "GOTO",

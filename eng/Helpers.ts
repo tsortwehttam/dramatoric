@@ -397,6 +397,8 @@ export function wrapKids(kids: WellNode[], type: string = GROUP_TYPE) {
 export const ROOT_TYPE = "ROOT";
 export const GROUP_TYPE = "GROUP";
 export const SET_TYPE = "SET";
+export const VAR_TYPE = "VAR";
+export const TEXTVAR_TYPE = "TEXT_ASSIGN";
 export const SCENE_TYPE = "SCENE";
 export const CODE_TYPE = "CODE";
 export const TEXT_TYPE = "TEXT";
@@ -448,6 +450,8 @@ export const DIRECTIVE_TYPES = [
   GROUP_TYPE,
   TEXT_TYPE,
   SET_TYPE,
+  VAR_TYPE,
+  TEXTVAR_TYPE,
   SCENE_TYPE,
   CODE_TYPE,
   CAPTURE_TYPE,
@@ -497,6 +501,8 @@ export const DIRECTIVE_TYPES = [
 
 export const VAR_DEFINING_TYPES = [
   SET_TYPE,
+  VAR_TYPE,
+  TEXTVAR_TYPE,
   "DEFAULT",
   "INCR",
   "DECR",

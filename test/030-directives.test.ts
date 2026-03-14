@@ -163,6 +163,71 @@ async function test() {
   );
   expect(result.state.val, 6);
 
+  result = await execStoryTest(
+    dedent`
+      note = VAR: Some text to keep
+    `,
+    {}
+  );
+  expect(result.state.note, "Some text to keep");
+
+  result = await execStoryTest(
+    dedent`
+      count = VAR: 5
+
+      items = VAR: [a, b, c]
+
+      truthy = VAR: true
+    `,
+    {}
+  );
+  expect(result.state.count, 5);
+  expect(result.state.items, ["a", "b", "c"]);
+  expect(result.state.truthy, true);
+
+  result = await execStoryTest(
+    dedent`
+      SET: who "Frank"
+
+      note = VAR: {{who}}
+    `,
+    {}
+  );
+  expect(result.state.note, "{{who}}");
+
+  result = await execStoryTest(
+    dedent`
+      note = VAR: DO
+        First line.
+        Second line.
+      END
+    `,
+    {}
+  );
+  expect(result.state.note, "First line.\nSecond line.");
+
+  result = await execStoryTest(
+    dedent`
+      raw = TEXT: 5
+
+      tmpl = TEXT: {{who}}
+    `,
+    {}
+  );
+  expect(result.state.raw, "5");
+  expect(result.state.tmpl, "{{who}}");
+
+  result = await execStoryTest(
+    dedent`
+      note = TEXT: DO
+        First line.
+        Second line.
+      END
+    `,
+    {}
+  );
+  expect(result.state.note, "First line.\nSecond line.");
+
   // CASE: with WHEN matching
   result = await execStoryTest(
     dedent`

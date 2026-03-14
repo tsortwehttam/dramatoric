@@ -10,6 +10,10 @@ function varErrors(errors: ErrorBase[]) {
   return errors.filter((e) => e.type === "var-undefined");
 }
 
+function warningErrors(errors: ErrorBase[]) {
+  return errors.filter((e) => e.type === "warning-implicit-body-stanza");
+}
+
 async function test() {
   // Valid: no script expressions, just simple args
   const r1 = await compileCartridge({
@@ -182,6 +186,16 @@ END
   });
   expect(varErrors(r15.errs), []);
 
+  const r15b = await compileCartridge({
+    "main.dram": Buffer.from(`
+note = VAR: hello there
+IF: stringLength(note) > 0 DO
+  LOG: yep
+END
+`),
+  });
+  expect(varErrors(r15b.errs), []);
+
   // Magic event vars should be considered known at compile time
   const r16 = await compileCartridge({
     "main.dram": Buffer.from(`
@@ -205,6 +219,16 @@ END
   const vars17 = varErrors(r17.errs);
   expect(vars17.length, 1);
   expect(vars17[0].name, "totallyMissingVar");
+
+  const r18 = await compileCartridge({
+    "main.dram": Buffer.from(`
+SET: who "Frank"
+note = VAR: {{who}}
+`),
+  });
+  const warnings18 = warningErrors(r18.errs);
+  expect(warnings18.length, 1);
+  expect(warnings18[0].name, "SET");
 }
 
 test();
