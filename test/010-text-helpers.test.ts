@@ -108,18 +108,19 @@ async function test() {
 
   // filterConversationEvents
   const events = [
-    { from: "FRANK", to: ["JIM"], value: "Hey Jim!" },
-    { from: "JIM", to: ["FRANK"], value: "Hey Frank!" },
-    { from: "FRANK", to: [], value: "Hello everyone!" },
-    { from: "SALLY", to: ["BOB"], value: "Hi Bob!" },
-    { from: "BOB", to: ["SALLY", "FRANK"], value: "Hi all!" },
+    { from: "FRANK", to: ["JIM"], obs: [], value: "Hey Jim!" },
+    { from: "JIM", to: ["FRANK"], obs: [], value: "Hey Frank!" },
+    { from: "FRANK", to: [], obs: [], value: "Hello everyone!" },
+    { from: "SALLY", to: ["BOB"], obs: ["FRANK"], value: "Hi Bob!" },
+    { from: "BOB", to: ["SALLY", "FRANK"], obs: [], value: "Hi all!" },
   ];
   const frankJim = filterConversationEvents(events, ["FRANK", "JIM"]);
-  expect(frankJim.length, 4);
+  expect(frankJim.length, 5);
   expect(frankJim[0].value, "Hey Jim!");
   expect(frankJim[1].value, "Hey Frank!");
   expect(frankJim[2].value, "Hello everyone!");
-  expect(frankJim[3].value, "Hi all!");
+  expect(frankJim[3].value, "Hi Bob!");
+  expect(frankJim[4].value, "Hi all!");
 
   const sallyBob = filterConversationEvents(events, ["SALLY", "BOB"]);
   expect(sallyBob.length, 3);
@@ -128,10 +129,11 @@ async function test() {
   expect(allEmpty.length, 5);
 
   const frankOnly = filterConversationEvents(events, ["FRANK"]);
-  expect(frankOnly.length, 3);
+  expect(frankOnly.length, 4);
   expect(frankOnly[0].value, "Hey Frank!");
   expect(frankOnly[1].value, "Hello everyone!");
-  expect(frankOnly[2].value, "Hi all!");
+  expect(frankOnly[2].value, "Hi Bob!");
+  expect(frankOnly[3].value, "Hi all!");
 }
 
 test();

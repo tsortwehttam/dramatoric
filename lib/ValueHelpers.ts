@@ -112,7 +112,7 @@ export function sortBy<T>(arr: T[], key: keyof T): T[] {
   });
 }
 
-type ConversationEvent = { from: string; to: string[] };
+type ConversationEvent = { from: string; to: string[]; obs: string[] };
 
 export function filterConversationEvents<T extends ConversationEvent>(events: T[], participants: string[]): T[] {
   if (participants.length === 0) return events;
@@ -120,6 +120,7 @@ export function filterConversationEvents<T extends ConversationEvent>(events: T[
   return events.filter((e) => {
     if (e.to.length === 0) return true;
     if (set.has(e.from)) return true;
+    if (e.obs.some((t) => set.has(t))) return true;
     return e.to.some((t) => set.has(t));
   });
 }
