@@ -118,8 +118,8 @@ export function filterConversationEvents<T extends ConversationEvent>(events: T[
   if (participants.length === 0) return events;
   const set = new Set(participants);
   return events.filter((e) => {
-    if (!set.has(e.from)) return false;
     if (e.to.length === 0) return true;
+    if (set.has(e.from)) return true;
     return e.to.some((t) => set.has(t));
   });
 }
