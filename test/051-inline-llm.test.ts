@@ -9,21 +9,21 @@ async function test() {
 
   // extractEmbeddedSegments: pure prompt
   const s2 = extractEmbeddedSegments("<<Be angry>>");
-  expect(s2, [{ kind: "prompt", value: "Be angry" }]);
+  expect(s2, [{ kind: "prompt", value: "Be angry", params: {} }]);
   console.info("[test] segments: pure prompt");
 
   // extractEmbeddedSegments: text before prompt
   const s3 = extractEmbeddedSegments("Hey you! <<angry command>>");
   expect(s3, [
     { kind: "text", value: "Hey you!" },
-    { kind: "prompt", value: "angry command" },
+    { kind: "prompt", value: "angry command", params: {} },
   ]);
   console.info("[test] segments: text before prompt");
 
   // extractEmbeddedSegments: text after prompt
   const s4 = extractEmbeddedSegments("<<angry command>> Show me ID!");
   expect(s4, [
-    { kind: "prompt", value: "angry command" },
+    { kind: "prompt", value: "angry command", params: {} },
     { kind: "text", value: "Show me ID!" },
   ]);
   console.info("[test] segments: text after prompt");
@@ -32,7 +32,7 @@ async function test() {
   const s5 = extractEmbeddedSegments("Hey you! <<angry command>> Show me ID!");
   expect(s5, [
     { kind: "text", value: "Hey you!" },
-    { kind: "prompt", value: "angry command" },
+    { kind: "prompt", value: "angry command", params: {} },
     { kind: "text", value: "Show me ID!" },
   ]);
   console.info("[test] segments: text-prompt-text");
@@ -41,9 +41,9 @@ async function test() {
   const s6 = extractEmbeddedSegments("Hello <<greet>> middle <<farewell>> bye");
   expect(s6, [
     { kind: "text", value: "Hello" },
-    { kind: "prompt", value: "greet" },
+    { kind: "prompt", value: "greet", params: {} },
     { kind: "text", value: "middle" },
-    { kind: "prompt", value: "farewell" },
+    { kind: "prompt", value: "farewell", params: {} },
     { kind: "text", value: "bye" },
   ]);
   console.info("[test] segments: multiple prompts interspersed");
@@ -60,8 +60,16 @@ async function test() {
 
   // extractEmbeddedSegments: multiline prompt
   const s9 = extractEmbeddedSegments("<<line one\nline two>>");
-  expect(s9, [{ kind: "prompt", value: "line one\nline two" }]);
+  expect(s9, [{ kind: "prompt", value: "line one\nline two", params: {} }]);
   console.info("[test] segments: multiline prompt");
+
+  const s9b = extractEmbeddedSegments("<<Hello {{ name }}>>");
+  expect(s9b, [{ kind: "prompt", value: "Hello {{ name }}", params: {} }]);
+  console.info("[test] segments: prompt preserves nested handlebars");
+
+  const s9c = extractEmbeddedSegments("<<Mention the player's greeting and answer warmly.>>");
+  expect(s9c, [{ kind: "prompt", value: "Mention the player's greeting and answer warmly.", params: {} }]);
+  console.info("[test] segments: prompt preserves apostrophes");
 
   // extractEmbeddedSegments: unclosed << treated as text
   const s10 = extractEmbeddedSegments("Hello << unclosed");

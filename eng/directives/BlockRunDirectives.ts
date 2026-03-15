@@ -1,6 +1,6 @@
 import { castToString } from "../../lib/EvalCasting";
-import { executeNode } from "../Execution";
-import { BLOCK_TYPE, cloneNode, RUN_TYPE, StoryDirectiveFuncDef } from "../Helpers";
+import { executeNode, renderTemplateText } from "../Execution";
+import { BLOCK_TYPE, cloneNode, INCLUDE_TYPE, readNamedClause, RUN_TYPE, StoryDirectiveFuncDef, TEMPLATE_TYPE } from "../Helpers";
 
 /**
  * ## BLOCK
@@ -42,6 +42,13 @@ export const BLOCK_directive: StoryDirectiveFuncDef = {
   },
 };
 
+export const TEMPLATE_directive: StoryDirectiveFuncDef = {
+  type: [TEMPLATE_TYPE],
+  func: async () => {
+    // No-op; this is registered when the engine context is created.
+  },
+};
+
 /**
  * ## RUN
  *
@@ -72,7 +79,7 @@ export const BLOCK_directive: StoryDirectiveFuncDef = {
 export const RUN_directive: StoryDirectiveFuncDef = {
   type: [RUN_TYPE],
   func: async (node, ctx, pms) => {
-    const name = castToString(pms.artifacts[0] ?? pms.text);
+    const name = readNamedClause(pms);
     const found = ctx.blocks[name];
     if (!found) {
       console.warn(`Module not found: ${name}`);
@@ -84,5 +91,14 @@ export const RUN_directive: StoryDirectiveFuncDef = {
     const result = await executeNode(cloneNode(found), ctx);
     ctx.session.stack.pop();
     return result;
+  },
+};
+
+export const INCLUDE_directive: StoryDirectiveFuncDef = {
+  type: [INCLUDE_TYPE],
+  func: async (node, ctx, pms) => {
+    const name = readNamedClause(pms);
+    const rendered = await renderTemplateText(name, pms.trailers, ctx);
+    return [rendered];
   },
 };

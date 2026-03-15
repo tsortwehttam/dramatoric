@@ -12,6 +12,12 @@ expect(renderHandlebarsAndDDV("Hi {{ name }}", ctx), "Hi Iris");
 expect(renderHandlebarsAndDDV("Sum {{ x + 2 }}", ctx), "Sum 3");
 expect(renderHandlebarsAndDDV("Logic {{ true || false }}", ctx), "Logic true");
 
+const nestedCtx = ctxWithState({ gender: "male", numA: 34, numB: 78 });
+expect(
+  renderHandlebarsAndDDV("Hello, Mister << create a name for a {{ gender }} who is {{ {{ numA }} % {{ numB }} }} years old >>", nestedCtx),
+  "Hello, Mister << create a name for a male who is 34 years old >>",
+);
+
 const pipeCtx = ctxWithState();
 expect(renderHandlebarsAndDDV("{{ ^a|b|c }}", pipeCtx), "a");
 expect(renderHandlebarsAndDDV("{{ ^a|b|c }}", pipeCtx), "b");

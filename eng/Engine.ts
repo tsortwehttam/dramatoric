@@ -24,6 +24,7 @@ import {
   MediaOptions,
   PlayFunc,
   PlayType,
+  readNamedClause,
   RawInputShape,
   reifyEvent,
   SayFunc,
@@ -37,12 +38,15 @@ import {
   StoryEventType,
   StorySession,
   StorySources,
+  StoryTemplate,
   StrictPartialEvent,
+  TEMPLATE_TYPE,
   WellNode,
   WellVarBinding,
   wrapKids,
 } from "./Helpers";
 import { tokenize, tokensToKVP } from "./Lexer";
+import { renderTemplateTextSync } from "./Execution";
 
 export type ContextCallbacks = {
   onEvent: (event: StoryEvent) => void;
@@ -168,12 +172,22 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     return !!session.entities[castToString(id)];
   };
 
+  const include: ExprEvalFunc = (id: SerialValue, params: SerialValue = {}): SerialValue => {
+    const name = castToString(id);
+    const values =
+      params && !Array.isArray(params) && typeof params === "object"
+        ? (params as Record<string, SerialValue>)
+        : {};
+    return renderTemplateTextSync(name, values, ctx);
+  };
+
   const functions: Record<string, ExprEvalFunc> = {
     get: (key) => get(castToString(key)),
     set: (key, value) => set(castToString(key), value),
     stat,
     setStat,
     hasEntity,
+    include,
   };
 
   const runner = createLoadedRunner(rng, {}, functions);
@@ -191,6 +205,7 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     io,
     rng,
     blocks: {},
+    templates: {},
     sources,
     directives: DIRECTIVES,
     ops: OPS,
@@ -235,8 +250,18 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
   walkTree(sources.root, (node) => {
     if (node.type === BLOCK_TYPE) {
       const pms = marshallParams(node.args, ctx.evaluate);
-      const name = castToString(pms.artifacts[0] ?? pms.text);
+      const name = readNamedClause(pms);
       ctx.blocks[name] = wrapKids(node.kids);
+      return;
+    }
+    if (node.type === TEMPLATE_TYPE) {
+      const pms = marshallParams(node.args, ctx.evaluate);
+      const name = readNamedClause(pms);
+      const template: StoryTemplate = {
+        body: wrapKids(node.kids),
+        defaults: { ...pms.trailers },
+      };
+      ctx.templates[name] = template;
     }
   });
 

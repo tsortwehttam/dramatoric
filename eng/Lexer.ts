@@ -1,4 +1,5 @@
 import { ScalarValue, SerialValue } from "../lib/CoreTypings";
+import { readTemplateToken } from "../lib/TemplateHelpers";
 
 type TokenPatternType = "QUO" | "NUM" | "PCT" | "SPC" | "WRD" | "TPL";
 
@@ -16,8 +17,6 @@ const TOKEN_PATTERNS: { type: TokenPatternType; regex: RegExp }[] = [
   { type: "NUM", regex: /^-?0x[0-9a-fA-F]+/ },
   { type: "NUM", regex: /^-?[0-9]+\.?[0-9]*([eE][+-]?[0-9]+)?/ },
   { type: "NUM", regex: /^-?\.[0-9]+([eE][+-]?[0-9]+)?/ },
-  { type: "TPL", regex: /^\{\{([\s\S]+?)\}\}/ },
-  { type: "TPL", regex: /^<<([\s\S]+?)>>/ },
   { type: "WRD", regex: /^[$_\p{L}\p{N}]+(\.[$_\p{L}\p{N}]+)*/u },
   { type: "PCT", regex: /^[^\s]/ },
   { type: "SPC", regex: /^\s+/ },
@@ -33,6 +32,15 @@ export function tokenize(src: string) {
   let remaining = src;
 
   while (remaining.length > 0) {
+    const tpl =
+      readTemplateToken(remaining, 0, "{{", "}}", true) ??
+      readTemplateToken(remaining, 0, "<<", ">>", false, false);
+    if (tpl) {
+      tokens.push({ type: "TPL", value: tpl.raw });
+      remaining = remaining.slice(tpl.end);
+      continue;
+    }
+
     let matched = false;
 
     for (const pattern of TOKEN_PATTERNS) {
@@ -44,9 +52,6 @@ export function tokenize(src: string) {
       if (pattern.type === "QUO") {
         const unescaped = match[1].replace(/\\(.)/g, "$1");
         tokens.push({ type: pattern.type, value: unescaped });
-      } else if (pattern.type === "TPL") {
-        // Preserve template markers so caller can decide to handle which template type in which way
-        tokens.push({ type: pattern.type, value: match[0] });
       } else if (pattern.type === "NUM" || pattern.type === "PCT" || pattern.type === "WRD" || pattern.type === "SPC") {
         tokens.push({ type: pattern.type, value: match[0] });
       }

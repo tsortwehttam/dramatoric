@@ -41,6 +41,16 @@ async function go() {
   const second = renderHandlebarsTemplate(template, createResolver({ value: "B" }));
   expect(first, "Value: A!");
   expect(second, "Value: B!");
+
+  const nestedSeen: string[] = [];
+  const nested = renderHandlebarsTemplate("Hello {{ title {{ role }} }}!", (expr) => {
+    nestedSeen.push(expr);
+    if (expr === "role") return "captain";
+    if (expr === "title captain") return "Mister";
+    return "";
+  });
+  expect(nested, "Hello Mister!");
+  expect(nestedSeen, ["role", "title captain"]);
 }
 
 go();

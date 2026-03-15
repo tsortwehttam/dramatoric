@@ -1,10 +1,11 @@
 import z from "zod";
 import { ErrorBase, JsonSchema, NestedRecords, NonEmpty, SerialValue } from "../lib/CoreTypings";
-import { isVarPath } from "../lib/EvalCasting";
+import { castToString, isVarPath } from "../lib/EvalCasting";
 import { isValidUrl } from "../lib/HTTPHelpers";
 import { LLM_SLUGS, LLMInstruction } from "../lib/LLMTypes";
 import { parseNumberOrNull } from "../lib/MathHelpers";
 import { PRNG } from "../lib/RandHelpers";
+import { readTemplateToken } from "../lib/TemplateHelpers";
 import { isBlank, ulid } from "../lib/TextHelpers";
 import { StoryVoiceSpec } from "../lib/VoiceHelpers";
 import { ExprEvalFunc } from "./Evaluator";
@@ -147,6 +148,11 @@ export const PARAMS_KEY = "$params";
 
 export type EventHandlerOpts = { once: boolean };
 
+export type StoryTemplate = {
+  body: WellNode;
+  defaults: Record<string, SerialValue>;
+};
+
 export type StoryEvaluatorFunc = (
   expr: string,
   vars: Record<string, SerialValue>,
@@ -283,6 +289,7 @@ export type StoryEventContext = {
   io: IOFunc;
   sources: StorySources;
   blocks: Record<string, WellNode>;
+  templates: Record<string, StoryTemplate>;
   evaluate: StoryEvaluatorFunc;
   get: GetFunc;
   set: SetFunc;
@@ -411,6 +418,7 @@ export const ONCE_TYPE = "ONCE";
 export const INPUT_TYPE = "INPUT";
 export const MACRO_TYPE = "MACRO";
 export const BLOCK_TYPE = "BLOCK";
+export const TEMPLATE_TYPE = "TEMPLATE";
 export const MUSIC_TYPE = "MUSIC";
 export const SOUND_TYPE = "SOUND";
 export const PARALLEL_TYPE = "PARALLEL";
@@ -435,6 +443,7 @@ export const RENDER_TYPE = "RENDER";
 export const WAIT_TYPE = "WAIT";
 export const WHILE_TYPE = "WHILE";
 export const RUN_TYPE = "RUN";
+export const INCLUDE_TYPE = "INCLUDE";
 export const ON_TYPE = "ON";
 export const LOOP_TYPE = "LOOP";
 export const DONE_TYPE = "DONE";
@@ -461,6 +470,7 @@ export const DIRECTIVE_TYPES = [
   ONCE_TYPE,
   INPUT_TYPE,
   BLOCK_TYPE,
+  TEMPLATE_TYPE,
   MUSIC_TYPE,
   SOUND_TYPE,
   PARALLEL_TYPE,
@@ -481,6 +491,7 @@ export const DIRECTIVE_TYPES = [
   WAIT_TYPE,
   WHILE_TYPE,
   RUN_TYPE,
+  INCLUDE_TYPE,
   ON_TYPE,
   LOOP_TYPE,
   DONE_TYPE,
@@ -880,6 +891,15 @@ export function marshallParams(text: string, evaluate: StoryEvaluatorFunc): Mars
   };
 }
 
+export function readNamedClause(params: MarshalledParams): string {
+  const group = params.groups[0] ?? [];
+  const plain = params.clauses[0]?.trim() ?? "";
+  if (onlyNonSpaceTokens(group).length > 1) {
+    return plain;
+  }
+  return castToString(params.artifacts[0] ?? plain);
+}
+
 export function replaceNodeAtPath(root: WellNode, path: number[], newArgs: string): WellNode {
   if (path.length === 0) {
     return { ...root, args: newArgs };
@@ -970,16 +990,16 @@ export function extractEmbeddedSegments(text: string): EmbeddedSegment[] {
   let cursor = 0;
   let open = text.indexOf(LLM_BLOCK_OPEN, cursor);
   while (open >= 0) {
-    const close = text.indexOf(LLM_BLOCK_CLOSE, open + LLM_BLOCK_OPEN.length);
-    if (close < 0) break;
+    const token = readTemplateToken(text, open, LLM_BLOCK_OPEN, LLM_BLOCK_CLOSE, false, false);
+    if (!token) break;
     const before = text.slice(cursor, open).trim();
     if (before) segs.push({ kind: "text", value: before });
-    const raw = text.slice(open + LLM_BLOCK_OPEN.length, close).trim();
+    const raw = token.body.trim();
     if (raw) {
       const { params, body } = parseLLMBlockParams(raw);
       if (body) segs.push({ kind: "prompt", value: body, params });
     }
-    cursor = close + LLM_BLOCK_CLOSE.length;
+    cursor = token.end;
     open = text.indexOf(LLM_BLOCK_OPEN, cursor);
   }
   const tail = text.slice(cursor).trim();

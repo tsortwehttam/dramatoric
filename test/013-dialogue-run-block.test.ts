@@ -13,6 +13,25 @@ function createCaptureIO(calls: LLMInstruction[][]): IOFunc {
   return async <K extends IORequest["kind"]>(req: Extract<IORequest, { kind: K }>): Promise<IOResult<K>> => {
     if (req.kind === "llm") {
       const r = req as Extract<IORequest, { kind: "llm" }>;
+      const hasEvents =
+        r.schema &&
+        typeof r.schema === "object" &&
+        "properties" in r.schema &&
+        r.schema.properties &&
+        typeof r.schema.properties === "object" &&
+        "events" in r.schema.properties;
+      if (hasEvents) {
+        return {
+          events: [
+            {
+              act: "dialog",
+              to: ["FRANK"],
+              value: "Hello Frank",
+              raw: "Hello Frank",
+            },
+          ],
+        } as IOResult<K>;
+      }
       calls.push(r.instructions);
       return "Mock reply" as IOResult<K>;
     }
@@ -39,6 +58,7 @@ function createCaptureIO(calls: LLMInstruction[][]): IOFunc {
 async function test() {
   const script = `
     BLOCK: Shared Prompt DO
+      FRANK:
       << Mention the player's greeting and answer warmly. >>
     END
 
@@ -47,7 +67,6 @@ async function test() {
     END
 
     ON: $input DO
-      FRANK:
       RUN: Shared Prompt
     END
   `;

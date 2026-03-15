@@ -54,6 +54,12 @@ async function test() {
   expect(tpls2[1].value, "<<llm block>>");
   console.info("[test] ✅ Mixed {{...}} and <<...>> tokens work");
 
+  const tokens8 = tokenize("{{ title {{ role }} }}");
+  expect(tokens8.length, 1);
+  expect(tokens8[0].type, "TPL");
+  expect(tokens8[0].value, "{{ title {{ role }} }}");
+  console.info("[test] ✅ Nested {{...}} tokenizes as one TPL token");
+
   console.info("[test] All TPL token tests passed ✓");
 }
 

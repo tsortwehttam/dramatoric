@@ -129,11 +129,12 @@ async function test() {
   expect(allEmpty.length, 5);
 
   const frankOnly = filterConversationEvents(events, ["FRANK"]);
-  expect(frankOnly.length, 4);
-  expect(frankOnly[0].value, "Hey Frank!");
-  expect(frankOnly[1].value, "Hello everyone!");
-  expect(frankOnly[2].value, "Hi Bob!");
-  expect(frankOnly[3].value, "Hi all!");
+  expect(frankOnly.length, 5);
+  expect(frankOnly[0].value, "Hey Jim!");
+  expect(frankOnly[1].value, "Hey Frank!");
+  expect(frankOnly[2].value, "Hello everyone!");
+  expect(frankOnly[3].value, "Hi Bob!");
+  expect(frankOnly[4].value, "Hi all!");
 }
 
 test();

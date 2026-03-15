@@ -11,6 +11,7 @@ import {
   contextReadable,
   ELSE_TYPE,
   extractEmbeddedSegments,
+  INCLUDE_TYPE,
   IF_TYPE,
   LLM_SUBCOMMAND_CLASSIFY,
   LLM_SUBCOMMAND_GENERATE,
@@ -26,6 +27,7 @@ import {
   PROMPT_SYSTEM_TYPE,
   PROMPT_USER_TYPE,
   RawInputShape,
+  readNamedClause,
   reifyEvent,
   SCHEMA_TYPE,
   splitArgTokens,
@@ -96,6 +98,12 @@ export async function marshallText(
   delim: string = "\n",
   textPath: number[] = [],
 ): Promise<string> {
+  if (node.type === INCLUDE_TYPE) {
+    const renderedArgs = renderHandlebarsAndDDV(node.args, ctx).trim();
+    const pms = marshallParams(renderedArgs, ctx.evaluate);
+    const name = readNamedClause(pms);
+    return renderTemplateText(name, pms.trailers, ctx);
+  }
   let targetKids = node.kids;
   if (node.type === IF_TYPE || node.type === WHEN_TYPE || node.type === ON_TYPE) {
     const ok = await meetsAllConditions(renderHandlebarsAndDDV(node.args, ctx), ctx, createLLMYieldIfFunc(ctx));
@@ -375,6 +383,106 @@ export async function meetsAllConditions(text: string, ctx: StoryEventContext, l
 
 export async function readBody(node: WellNode, ctx: StoryEventContext) {
   return renderHandlebarsAndDDV(await marshallText(node, ctx), ctx).trim();
+}
+
+export async function renderTemplateText(
+  name: string,
+  params: Record<string, SerialValue>,
+  ctx: StoryEventContext,
+): Promise<string> {
+  const template = ctx.templates[name];
+  if (!template) {
+    console.warn(`Template not found: ${name}`);
+    return "";
+  }
+  const scope = {
+    ...template.defaults,
+    ...params,
+  };
+  ctx.session.stack.push(scope);
+  try {
+    return renderHandlebarsAndDDV(await marshallText(template.body, ctx), ctx);
+  } finally {
+    ctx.session.stack.pop();
+  }
+}
+
+export function renderTemplateTextSync(
+  name: string,
+  params: Record<string, SerialValue>,
+  ctx: StoryEventContext,
+  chain: string[] = [name],
+): string {
+  const template = ctx.templates[name];
+  if (!template) {
+    console.warn(`Template not found: ${name}`);
+    return "";
+  }
+  if (chain.slice(0, -1).includes(name)) {
+    console.warn(`Template include cycle: ${chain.join(" -> ")}`);
+    return "";
+  }
+  const scope = {
+    ...template.defaults,
+    ...params,
+  };
+  ctx.session.stack.push(scope);
+  try {
+    return renderHandlebarsAndDDV(renderTemplateNodeSync(template.body, ctx, chain), ctx);
+  } finally {
+    ctx.session.stack.pop();
+  }
+}
+
+function renderTemplateNodeSync(node: WellNode, ctx: StoryEventContext, chain: string[]): string {
+  if (node.type === INCLUDE_TYPE) {
+    const renderedArgs = renderHandlebarsAndDDV(node.args, ctx).trim();
+    const pms = marshallParams(renderedArgs, ctx.evaluate);
+    const name = readNamedClause(pms);
+    return renderTemplateTextSync(name, pms.trailers, ctx, [...chain, name]);
+  }
+  let targetKids = node.kids;
+  if (node.type === IF_TYPE || node.type === WHEN_TYPE || node.type === ON_TYPE) {
+    const ok = meetsAllConditionsSync(renderHandlebarsAndDDV(node.args, ctx), ctx);
+    const { thenKids, elseKids } = splitConditionalKids(node.kids);
+    targetKids = ok ? thenKids : elseKids;
+    if (targetKids.length < 1) {
+      return "";
+    }
+  } else if (node.type === CASE_TYPE) {
+    targetKids = selectCaseKidsSync(node, ctx);
+    if (targetKids.length < 1) {
+      return "";
+    }
+  }
+  const prefix = node.type === TEXT_TYPE ? node.args : "";
+  const body = targetKids.map((kid) => renderTemplateNodeSync(kid, ctx, chain)).join("\n");
+  return prefix + body;
+}
+
+function meetsAllConditionsSync(text: string, ctx: StoryEventContext): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return false;
+  }
+  const groups = splitArgTokens(tokenize(trimmed));
+  if (groups.length < 1) {
+    return false;
+  }
+  const clauses = groups.map((group) => tokensToArgText(group)).filter((expr) => !!expr);
+  return clauses.every((expr) => !!ctx.evaluate(expr, {}, {}));
+}
+
+function selectCaseKidsSync(node: WellNode, ctx: StoryEventContext): WellNode[] {
+  const { whenNodes, elseKids } = splitCaseKids(node.kids);
+  const match = castToString(ctx.evaluate(renderHandlebarsAndDDV(node.args, ctx), {}, {}));
+  for (const whenNode of whenNodes) {
+    const rendered = renderHandlebarsAndDDV(whenNode.args, ctx);
+    if (castToString(ctx.evaluate(rendered, {}, {})) === match) {
+      return whenNode.kids;
+    }
+  }
+  return elseKids;
 }
 
 export function splitConditionalKids(kids: WellNode[]) {

@@ -1,4 +1,4 @@
-import { BLOCK_directive, RUN_directive } from "./directives/BlockRunDirectives";
+import { BLOCK_directive, INCLUDE_directive, RUN_directive, TEMPLATE_directive } from "./directives/BlockRunDirectives";
 import { CAPTURE_directive } from "./directives/CaptureDirective";
 import { CASE_directive } from "./directives/CaseDirective";
 import { CODE_directive } from "./directives/CodeDirective";
@@ -32,6 +32,7 @@ export const DIRECTIVES: StoryDirectiveFuncDef[] = [];
 
 DIRECTIVES.push(ROOT_directive);
 DIRECTIVES.push(BLOCK_directive);
+DIRECTIVES.push(TEMPLATE_directive);
 DIRECTIVES.push(BREAK_directive);
 DIRECTIVES.push(CAPTURE_directive);
 DIRECTIVES.push(SUSPEND_directive);
@@ -52,6 +53,7 @@ DIRECTIVES.push(MUSIC_or_SOUND_directive);
 DIRECTIVES.push(PARALLEL_directive);
 DIRECTIVES.push(RENDER_directive);
 DIRECTIVES.push(RUN_directive);
+DIRECTIVES.push(INCLUDE_directive);
 DIRECTIVES.push(SAVE_directive);
 DIRECTIVES.push(LOAD_directive);
 DIRECTIVES.push(SET_directive);
