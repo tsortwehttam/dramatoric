@@ -1,4 +1,5 @@
 import { SerialValue } from "../../lib/CoreTypings";
+import { formatAncestry } from "../../lib/LineageHelpers";
 import { safeJsonOrYamlParse } from "../../lib/JSONAndYAMLHelpers";
 import { isBlank } from "../../lib/TextHelpers";
 import { readBody } from "../Execution";
@@ -78,19 +79,42 @@ export const ENTITY_directive: StoryDirectiveFuncDef = {
       stats[key] = pms.trailers[key];
     }
 
+    // Parse npc param: "npc LineageName 42" stored as "LineageName 42" string
+    let lineage = "";
+    let npcId = -1;
+    const npcRaw = pms.trailers.npc;
+    if (typeof npcRaw === "string" && !isBlank(npcRaw)) {
+      const parts = npcRaw.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        lineage = parts[0];
+        npcId = parseInt(parts[1], 10);
+      }
+    } else if (typeof npcRaw === "number") {
+      // npc param was just an ID; check if the first trailer key is the lineage name
+      const keys = Object.keys(pms.trailers);
+      const npcIdx = keys.indexOf("npc");
+      if (npcIdx > 0) {
+        lineage = keys[npcIdx - 1];
+      }
+      npcId = npcRaw;
+    }
+
     const existing = ctx.session.entities[name];
     if (existing) {
-      // Merge: update stats, replace modus and persona
       Object.assign(existing.stats, stats);
       existing.modus = node;
       if (persona) {
         existing.persona = persona;
       }
+      if (lineage) existing.lineage = lineage;
+      if (npcId >= 0) existing.npcId = npcId;
     } else {
       ctx.session.entities[name] = {
         modus: node,
         persona,
         stats,
+        lineage,
+        npcId,
       };
     }
 
@@ -146,5 +170,14 @@ export function resolveEntityPersona(speaker: string, ctx: StoryEventContext): s
   if (!entity) {
     return "";
   }
-  return entity.persona;
+  const { persona, lineage, npcId } = entity;
+  if (!lineage || npcId < 0) {
+    return persona;
+  }
+  const spec = ctx.session.lineages[lineage];
+  if (!spec) {
+    return persona;
+  }
+  const ancestry = formatAncestry(spec, npcId);
+  return persona ? `${persona}\n\n${ancestry}` : ancestry;
 }

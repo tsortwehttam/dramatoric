@@ -1,5 +1,6 @@
 import z from "zod";
 import { ErrorBase, JsonSchema, NestedRecords, NonEmpty, SerialValue } from "../lib/CoreTypings";
+import { BlendStrategy } from "../lib/NPC";
 import { castToString, isVarPath } from "../lib/EvalCasting";
 import { isValidUrl } from "../lib/HTTPHelpers";
 import { LLM_SLUGS, LLMInstruction } from "../lib/LLMTypes";
@@ -234,6 +235,18 @@ export type StorySession = {
       modus: WellNode;
       persona: string;
       stats: Record<string, SerialValue>;
+      lineage: string;
+      npcId: number;
+    }
+  >;
+  lineages: Record<
+    string,
+    {
+      adam: Record<string, SerialValue>;
+      eve: Record<string, SerialValue>;
+      blend: Record<string, BlendStrategy>;
+      depth: number;
+      traits: Record<string, Record<string, SerialValue>>;
     }
   >;
   seed: string;
@@ -448,6 +461,7 @@ export const ON_TYPE = "ON";
 export const LOOP_TYPE = "LOOP";
 export const DONE_TYPE = "DONE";
 export const ENTITY_TYPE = "ENTITY";
+export const LINEAGE_TYPE = "LINEAGE";
 export const PRELUDE_TYPE = "PRELUDE";
 export const RESUME_TYPE = "RESUME";
 export const EPILOGUE_TYPE = "EPILOGUE";
@@ -496,6 +510,7 @@ export const DIRECTIVE_TYPES = [
   LOOP_TYPE,
   DONE_TYPE,
   ENTITY_TYPE,
+  LINEAGE_TYPE,
   PRELUDE_TYPE,
   RESUME_TYPE,
   EPILOGUE_TYPE,
@@ -538,6 +553,7 @@ export function reifySession(session: Partial<StorySession> = {}): StorySession 
     state: {},
     history: [],
     entities: {},
+    lineages: {},
     cycle: -1,
     time: -1,
     turns: 0,

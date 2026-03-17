@@ -1,5 +1,6 @@
 import { JsonSchema, SerialValue } from "../lib/CoreTypings";
-import { castToString, safeGet, safeSet } from "../lib/EvalCasting";
+import { castToString, castToNumber, safeGet, safeSet } from "../lib/EvalCasting";
+import { formatAncestry, formatAncestryAsData } from "../lib/LineageHelpers";
 import { walkTree } from "../lib/GenericNodeHelpers";
 import { LLMInstruction } from "../lib/LLMTypes";
 import { createPRNG } from "../lib/RandHelpers";
@@ -181,6 +182,26 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     return renderTemplateTextSync(name, values, ctx);
   };
 
+  const lineageFn: ExprEvalFunc = (entityId: SerialValue, depth: SerialValue = null): SerialValue => {
+    const eid = castToString(entityId);
+    const entity = session.entities[eid];
+    if (!entity || !entity.lineage || entity.npcId < 0) return "";
+    const spec = session.lineages[entity.lineage];
+    if (!spec) return "";
+    const d = depth !== null ? castToNumber(depth) : undefined;
+    return formatAncestryAsData(spec, entity.npcId, d);
+  };
+
+  const lineageText: ExprEvalFunc = (entityId: SerialValue, depth: SerialValue = null): SerialValue => {
+    const eid = castToString(entityId);
+    const entity = session.entities[eid];
+    if (!entity || !entity.lineage || entity.npcId < 0) return "";
+    const spec = session.lineages[entity.lineage];
+    if (!spec) return "";
+    const d = depth !== null ? castToNumber(depth) : undefined;
+    return formatAncestry(spec, entity.npcId, d);
+  };
+
   const functions: Record<string, ExprEvalFunc> = {
     get: (key) => get(castToString(key)),
     set: (key, value) => set(castToString(key), value),
@@ -188,6 +209,8 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     setStat,
     hasEntity,
     include,
+    lineage: lineageFn,
+    lineageText,
   };
 
   const runner = createLoadedRunner(rng, {}, functions);
