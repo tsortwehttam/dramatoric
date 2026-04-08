@@ -139,7 +139,7 @@ export function renderHandlebarsAndDDV(text: string, ctx: StoryEventContext): st
   return renderHandlebarsTemplate(text, (expr) => renderHandlebarsValue(expr, ctx, scope));
 }
 
-type DdvMode = "random" | "cycle" | "bag";
+type DdvMode = "random" | "cycle" | "bag" | "sticky";
 
 function renderHandlebarsValue(expr: string, ctx: StoryEventContext, scope: Record<string, SerialValue>): SerialValue {
   const trimmed = expr.trim();
@@ -177,6 +177,9 @@ function readDdvModePrefix(s: string): { mode: DdvMode; core: string } | null {
   }
   if (s.startsWith("~")) {
     return { mode: "bag", core: s.slice(1).trim() };
+  }
+  if (s.startsWith("+")) {
+    return { mode: "sticky", core: s.slice(1).trim() };
   }
   return null;
 }
@@ -230,6 +233,7 @@ function readDdvModeValue(value: SerialValue): DdvMode | null {
   if (mode === "cycle") return "cycle";
   if (mode === "bag") return "bag";
   if (mode === "random") return "random";
+  if (mode === "sticky") return "sticky";
   return null;
 }
 

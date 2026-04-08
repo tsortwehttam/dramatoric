@@ -496,6 +496,32 @@ rawDoc = FETCH: {{remoteUrl}}
 - URLs are separated by semicolons; missing or failing requests yield `null`.
 - Responses are returned as parsed JSON when possible, otherwise text.
 
+## GOTO
+
+**Summary**
+Jump to a named SCENE, transferring flow permanently.
+
+**Syntax**
+```dramatoric
+GOTO: Scene Name
+```
+
+**Examples**
+```dramatoric
+SCENE: Kitchen DO
+  NARRATOR:
+  The smell of fresh bread fills the air.
+END
+
+GOTO: Kitchen
+```
+
+**Notes**
+- GOTO does not return to the caller. Flow continues from the target scene.
+- GOTO works from inside loops, conditionals, and blocks — it unwinds the entire call stack.
+- Chained GOTOs are supported (a scene can GOTO another scene).
+- A hop counter prevents infinite GOTO loops (max 1000 hops per step).
+
 ## GROUP / ROOT
 
 **Summary**
@@ -959,6 +985,41 @@ SAVE: "checkpoint_1"
 - The ID is rendered, so you can use expressions or interpolation.
 - How and where saves are stored depends on your runtime.
 
+## SCENE
+
+**Summary**
+Define a named scene that can be jumped to with GOTO.
+
+**Syntax**
+```dramatoric
+SCENE: Scene Name DO
+  ...
+END
+```
+
+**Examples**
+```dramatoric
+SCENE: Market DO
+  NARRATOR:
+  Stalls line the cobblestone street.
+
+  GOTO: Town Square
+END
+
+SCENE: Town Square DO
+  NARRATOR:
+  The fountain gurgles quietly.
+END
+
+GOTO: Market
+```
+
+**Notes**
+- Defining a SCENE does not play it immediately.
+- Scenes are jump targets for GOTO, similar to how BLOCKs are targets for RUN.
+- Unlike RUN, GOTO transfers flow permanently (does not return to the caller).
+- Use `$visits` inside a scene to check how many times it has been entered.
+
 ## SET
 
 **Summary**
@@ -1042,6 +1103,25 @@ SPLICE: items (2, 3)
 - A single index removes one element.
 - A tuple removes `deleteCount` elements starting at `startIndex`.
 
+## TEXT
+
+**Summary**
+Return literal text content for assignment-style variable binding.
+
+**Syntax**
+```dramatoric
+foo = TEXT: 5
+foo = TEXT: {{name}}
+foo = TEXT: DO
+  multi-line text
+END
+```
+
+**Notes**
+- `TEXT:` is intended for `name = TEXT:` assignment form.
+- It always returns a string value.
+- It does not evaluate expressions or render `{{...}}` templates.
+
 ## TOGGLE
 
 **Summary**
@@ -1084,6 +1164,28 @@ UNSHIFT: stack {{item}}; history "event"
 
 **Notes**
 - Non-array values are treated as empty arrays before prepending.
+
+## VAR
+
+**Summary**
+Return string content for assignment-style variable binding.
+
+**Syntax**
+```dramatoric
+foo = VAR: Some text
+foo = VAR: 5
+foo = VAR: [a, b, c]
+foo = VAR: DO
+  multi-line text
+END
+```
+
+**Notes**
+- `VAR:` is intended for `name = VAR:` assignment form.
+- It parses literal values like numbers, booleans, null, and arrays.
+- It does not evaluate expressions or render `{{...}}` templates.
+- Use quotes when you want a string that looks like another literal, e.g. `foo = VAR: "5"`.
+- Use `SET:` when you want expression evaluation.
 
 ## VARY
 

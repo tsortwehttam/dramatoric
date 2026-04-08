@@ -168,7 +168,7 @@ export type StoryOperatorFunc = (
 export type StoryCartridge = Record<string, Buffer | string>;
 
 export type DDVOptions = {
-  mode?: "cycle" | "bag" | "random";
+  mode?: "cycle" | "bag" | "random" | "sticky";
 };
 
 export type DDVState = {
@@ -242,6 +242,7 @@ export type StorySession = {
   turns: number;
   ddv: DDVState;
   once: Record<string, boolean>;
+  visits: Record<string, number>;
   stack: Record<string, SerialValue>[];
   checkpoints: Record<number, number[]>;
   handlers: Record<number, boolean>;
@@ -289,6 +290,7 @@ export type StoryEventContext = {
   io: IOFunc;
   sources: StorySources;
   blocks: Record<string, WellNode>;
+  scenes: Record<string, WellNode>;
   templates: Record<string, StoryTemplate>;
   evaluate: StoryEvaluatorFunc;
   get: GetFunc;
@@ -309,6 +311,7 @@ export type StoryEventContext = {
   resume: number[];
   halted: boolean;
   exited: boolean;
+  goto: string | null;
   handler: number;
 };
 
@@ -446,6 +449,7 @@ export const RUN_TYPE = "RUN";
 export const INCLUDE_TYPE = "INCLUDE";
 export const ON_TYPE = "ON";
 export const LOOP_TYPE = "LOOP";
+export const GOTO_TYPE = "GOTO";
 export const DONE_TYPE = "DONE";
 export const ENTITY_TYPE = "ENTITY";
 export const PRELUDE_TYPE = "PRELUDE";
@@ -480,6 +484,7 @@ export const DIRECTIVE_TYPES = [
   VARY_TYPE,
   DATA_TYPE,
   BREAK_TYPE,
+  GOTO_TYPE,
   CASE_TYPE,
   WHEN_TYPE,
   LOG_TYPE,
@@ -543,6 +548,7 @@ export function reifySession(session: Partial<StorySession> = {}): StorySession 
     turns: 0,
     ddv: { cycles: {}, bags: {} },
     once: {},
+    visits: {},
     stack: [],
     checkpoints: {},
     handlers: {},
@@ -638,6 +644,9 @@ export function resolveBracketDDV(
     } else if (inner[0] === "~") {
       mode = "bag";
       inner = inner.slice(1).trim();
+    } else if (inner[0] === "+") {
+      mode = "sticky";
+      inner = inner.slice(1).trim();
     }
     return pickDDV(splitOpts(inner), ctx.session.ddv, ctx.rng, { mode });
   });
@@ -656,6 +665,13 @@ export function pickDDV(
     const i = ddv.cycles[key] ?? 0;
     ddv.cycles[key] = (i + 1) % vars.length;
     return vars[i % vars.length];
+  }
+  if (mode === "sticky") {
+    const i = ddv.cycles[key] ?? 0;
+    if (i < vars.length - 1) {
+      ddv.cycles[key] = i + 1;
+    }
+    return vars[i];
   }
   if (mode === "bag") {
     let bag = ddv.bags[key];

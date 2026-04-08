@@ -1,8 +1,23 @@
-import { castToBoolean, castToNumber, castToString } from "../../lib/EvalCasting";
+import { castToBoolean, castToNumber, castToString, isTruthy } from "../../lib/EvalCasting";
+import { SerialValue } from "../../lib/CoreTypings";
 import { isBlank } from "../../lib/TextHelpers";
 import { A, Method, eq, isP } from "./FunctionHelpers";
 
 export const unifiedFunctions: Record<string, Method> = {
+  /**
+   * Multi-way conditional: takes pairs of (condition, value), returns the first value whose condition is truthy. An odd final argument is the default.
+   * @name cond
+   * @param args Alternating condition/value pairs, with an optional final default.
+   * @returns The first value whose condition is truthy, or the default, or null.
+   * @example cond(true, "yes", "no") //=> "yes"
+   */
+  cond: (...args: unknown[]) => {
+    for (let i = 0; i + 1 < args.length; i += 2) {
+      if (isTruthy(args[i])) return args[i + 1] as SerialValue;
+    }
+    if (args.length % 2 === 1) return args[args.length - 1] as SerialValue;
+    return null;
+  },
   /**
    * Returns true if the value is blank (empty string, empty array, empty object, zero, null, or undefined).
    * @name isBlank

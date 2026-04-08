@@ -76,6 +76,11 @@ const BINOP_PREC: Record<string, OpInfo> = {
   "**": { prec: 13, assoc: "right", alias: "pow" },
 };
 
+const KEYWORD_OPS: Record<string, OpInfo> = {
+  has: { prec: 9, assoc: "left", alias: "has" },
+  hasnt: { prec: 9, assoc: "left", alias: "hasnt" },
+};
+
 const UNOP_ALIAS: Record<string, string> = {
   "+": "toNumber",
   "-": "negate",
@@ -101,7 +106,9 @@ export function parseExprCore(expr: string): Expr | null {
 
   function peekOp(): string | null {
     const t0 = peek();
-    if (!t0 || t0.type !== "PCT") return null;
+    if (!t0) return null;
+    if (t0.type === "WRD" && KEYWORD_OPS[t0.value]) return t0.value;
+    if (t0.type !== "PCT") return null;
     const t1 = peek(1);
     const c0 = t0.value;
     const c1 = t1?.type === "PCT" ? t1.value : "";
@@ -116,7 +123,11 @@ export function parseExprCore(expr: string): Expr | null {
   }
 
   function consumeOp(op: string) {
-    for (let i = 0; i < op.length; i++) advance();
+    if (KEYWORD_OPS[op]) {
+      advance(); // Single WRD token
+    } else {
+      for (let i = 0; i < op.length; i++) advance();
+    }
   }
 
   function expect(val: string) {
@@ -134,7 +145,7 @@ export function parseExprCore(expr: string): Expr | null {
       const op = peekOp();
 
       if (op) {
-        const info = BINOP_PREC[op];
+        const info = BINOP_PREC[op] ?? KEYWORD_OPS[op];
         if (!info || info.prec < minPrec) break;
         consumeOp(op);
         const startPos = pos;
@@ -347,6 +358,16 @@ const STDLIB: Record<string, ExprEvalFunc> = {
   bitwiseLeftShift: (a, b) => n(a) << n(b),
   bitwiseRightShift: (a, b) => n(a) >> n(b),
   bitwiseRightShiftUnsigned: (a, b) => n(a) >>> n(b),
+  has: (a, b) => {
+    if (Array.isArray(a)) return a.some((item) => item === b);
+    if (typeof a === "string" && typeof b === "string") return a.includes(b);
+    return false;
+  },
+  hasnt: (a, b) => {
+    if (Array.isArray(a)) return !a.some((item) => item === b);
+    if (typeof a === "string" && typeof b === "string") return !a.includes(b);
+    return true;
+  },
   // Special ops handled directly in evaluateExprCore but need to be known for validation
   ternary: () => null,
   and: () => null,

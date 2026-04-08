@@ -248,6 +248,7 @@ The reference below shows each method with a short example and a one-line descri
 ## Unified Functions
 | Example | Returns |
 | --- | --- |
+| `cond(true, "yes", "no") //=> "yes"` | The first value whose condition is truthy, or the default, or null. |
 | `doesContain("hello", "ell") //=> true` | True if the value contains the search value. |
 | `doesHave("hello", "lo") //=> true` | True if the value has the search value. |
 | `doesInclude([1,2,3], 2) //=> true` | True if the value includes the search value. |

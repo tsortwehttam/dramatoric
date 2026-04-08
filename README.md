@@ -594,6 +594,113 @@ END
 
 After `DONE:` runs, this handler never triggers again.
 
+## Scenes and Navigation
+
+`SCENE:` defines a named location or passage. `GOTO:` jumps to it, transferring flow permanently (unlike `RUN:`, which returns to the caller). Together they let you build exploration-style stories where the player moves between places.
+
+Here is an example of how scenes and navigation work:
+
+```dramatoric
+SCENE: Garden DO
+  NARRATOR:
+  Lanterns hang from the trees, casting a warm glow.
+
+  action = CAPTURE: DO
+    Normalize to "explore" or "return".
+  END
+
+  IF: action.result == "return" DO
+    GOTO: Ballroom
+  END
+
+  NARRATOR:
+  You linger among the roses.
+END
+
+SCENE: Ballroom DO
+  NARRATOR:
+  The ballroom swirls with dancers.
+END
+
+// Start the story in the garden
+GOTO: Garden
+```
+
+`GOTO:` works from anywhere — inside loops, conditionals, or blocks. It unwinds the entire call stack and resumes at the target scene. Chained GOTOs work too: one scene can jump to another.
+
+### Conditional Text with `cond()`
+
+`cond()` selects text based on multiple conditions, right inside `{{...}}`. It takes pairs of (condition, value) and returns the first match:
+
+```well
+SET: health 45
+
+NARRATOR:
+You feel {{cond(health > 75, "strong", health > 25, "bruised", "faint")}}.
+```
+
+This is much more concise than nested `IF:` blocks for inline text variation.
+
+### Set Membership with `has` and `hasnt`
+
+The `has` and `hasnt` operators check whether an array contains a value or a string contains a substring:
+
+```well
+SET: inventory ["sword", "shield", "lantern"]
+
+IF: inventory has "lantern" DO
+  NARRATOR:
+  Your lantern illuminates the path ahead.
+END
+
+IF: inventory hasnt "key" DO
+  NARRATOR:
+  You'll need to find a key.
+END
+```
+
+These work naturally in conditions and compose with `&&` and `||`.
+
+### Sticky Text Sequences
+
+Use `{{+...}}` for text that progresses through a sequence, then sticks on the last value. Unlike `{{^...}}` (which cycles), sticky mode stops advancing once it reaches the end:
+
+```well
+BLOCK: Check Mirror DO
+  NARRATOR:
+  {{+You barely recognize yourself.|The changes are becoming more apparent.|You have transformed completely.}}
+END
+
+RUN: Check Mirror
+RUN: Check Mirror
+RUN: Check Mirror
+// Third and all subsequent runs: "You have transformed completely."
+```
+
+This is perfect for progressive descriptions that settle into a final state.
+
+### Visit Counting with `$visits`
+
+Inside a `BLOCK:` or `SCENE:`, the magic variable `$visits` tracks how many times that block or scene has been entered:
+
+```well
+BLOCK: Tavern DO
+  IF: $visits == 1 DO
+    NARRATOR:
+    The tavern is new to you. Smoke curls from the hearth.
+  ELSE: DO
+    NARRATOR:
+    The familiar tavern greets you. The barkeep nods.
+  END
+  END
+END
+
+RUN: Tavern
+RUN: Tavern
+```
+
+No manual counters needed. `$visits` starts at 1 on the first entry and increments on each subsequent one.
+
 ## Ending the Story
 
 `EXIT:` ends the story:

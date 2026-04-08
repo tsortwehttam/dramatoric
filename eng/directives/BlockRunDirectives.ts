@@ -85,7 +85,9 @@ export const RUN_directive: StoryDirectiveFuncDef = {
       console.warn(`Module not found: ${name}`);
       return;
     }
+    ctx.session.visits[name] = (ctx.session.visits[name] ?? 0) + 1;
     ctx.session.stack.push({
+      $visits: ctx.session.visits[name],
       ...pms.trailers,
     });
     const result = await executeNode(cloneNode(found), ctx);

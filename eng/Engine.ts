@@ -11,6 +11,7 @@ import { createLoadedRunner, ExprEvalFunc } from "./Evaluator";
 import { executeNode, rawInputsToFullyReifiedMessages } from "./Execution";
 import {
   BLOCK_TYPE,
+  cloneNode,
   contextReadable,
   ENGINE,
   EVENT_HANDLERS,
@@ -28,6 +29,7 @@ import {
   RawInputShape,
   reifyEvent,
   SayFunc,
+  SCENE_TYPE,
   SendFunc,
   SET_TYPE,
   SetFunc,
@@ -205,6 +207,7 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     io,
     rng,
     blocks: {},
+    scenes: {},
     templates: {},
     sources,
     directives: DIRECTIVES,
@@ -224,6 +227,7 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     resume: [],
     halted: false,
     exited: false,
+    goto: null,
     handler: -1,
   };
 
@@ -246,12 +250,18 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     });
   }
 
-  // Assume all blocks are global by definition
+  // Assume all blocks and scenes are global by definition
   walkTree(sources.root, (node) => {
     if (node.type === BLOCK_TYPE) {
       const pms = marshallParams(node.args, ctx.evaluate);
       const name = readNamedClause(pms);
       ctx.blocks[name] = wrapKids(node.kids);
+      return;
+    }
+    if (node.type === SCENE_TYPE) {
+      const pms = marshallParams(node.args, ctx.evaluate);
+      const name = readNamedClause(pms);
+      ctx.scenes[name] = wrapKids(node.kids);
       return;
     }
     if (node.type === TEMPLATE_TYPE) {
@@ -322,8 +332,32 @@ export async function step(ctx: StoryEventContext) {
       ctx.handler = idx;
       ctx.halted = false;
       ctx.exited = false;
+      ctx.goto = null;
       await handleEvent(wrapKids([node]), next, ctx);
+      if (ctx.goto) break;
     }
+
+    // Resolve GOTO chain
+    let gotoHops = 0;
+    while (ctx.goto) {
+      if (++gotoHops > 1000) {
+        console.warn("GOTO hop limit exceeded (possible infinite loop)");
+        break;
+      }
+      const target = ctx.goto;
+      ctx.goto = null;
+      ctx.halted = false;
+      const scene = ctx.scenes[target];
+      if (!scene) {
+        console.warn(`GOTO target not found: ${target}`);
+        break;
+      }
+      ctx.session.visits[target] = (ctx.session.visits[target] ?? 0) + 1;
+      ctx.session.stack.push({ $visits: ctx.session.visits[target] });
+      await executeNode(cloneNode(scene), ctx);
+      ctx.session.stack.pop();
+    }
+
     const more = ctx.session.history.filter((e) => e.processed < 0 && !queued.has(e.id));
     more.forEach((e) => queued.add(e.id));
     events.push(...more);
