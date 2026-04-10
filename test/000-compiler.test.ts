@@ -222,13 +222,22 @@ END
 
   const r18 = await compileCartridge({
     "main.dram": Buffer.from(`
+IF: visibleTo("ALICE", "BOB") || stat("ALICE", "public.mood") == "open" DO
+  SET: view {{pov("ALICE")}}
+END
+`),
+  });
+  expect(opErrors(r18.errs), []);
+
+  const r19 = await compileCartridge({
+    "main.dram": Buffer.from(`
 SET: who "Frank"
 note = VAR: {{who}}
 `),
   });
-  const warnings18 = warningErrors(r18.errs);
-  expect(warnings18.length, 1);
-  expect(warnings18[0].name, "SET");
+  const warnings19 = warningErrors(r19.errs);
+  expect(warnings19.length, 1);
+  expect(warnings19[0].name, "SET");
 }
 
 test();

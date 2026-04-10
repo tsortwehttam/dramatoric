@@ -1,0 +1,156 @@
+---
+title: The Whitman House
+---
+
+ONCE: DO
+  HOST:
+  {{title}}
+END
+
+ENTITY: HOUSE DO
+  kind: place
+  public:
+    label: Whitman House
+END
+
+ENTITY: DEN DO
+  kind: place
+  public:
+    label: Den
+END
+
+ENTITY: LIVING ROOM DO
+  kind: place
+  public:
+    label: Living Room
+END
+
+ENTITY: KITCHEN DO
+  kind: place
+  public:
+    label: Kitchen
+END
+
+ENTITY: PATIO DO
+  kind: place
+  public:
+    label: Patio
+END
+
+ENTITY: FRANK WHITMAN DO
+  kind: person
+  public:
+    mood: restless
+  private:
+    goal: keep drinking
+  location:
+    place: DEN
+    rel: in
+  persona: You are Frank Whitman, a handsome suburban father with a wet bar and a polished ache.
+END
+
+ENTITY: ELEANOR WHITMAN DO
+  kind: person
+  public:
+    mood: composed
+  private:
+    goal: keep the evening intact
+  location:
+    place: LIVING ROOM
+    rel: in
+  persona: You are Eleanor Whitman, immaculate and tired of compensating for everyone else's appetites.
+END
+
+ENTITY: JULIA WHITMAN DO
+  kind: person
+  public:
+    mood: wounded
+  private:
+    goal: get out before the shouting starts
+  location:
+    place: PATIO
+    rel: under the awning
+  persona: You are Julia Whitman, home from college and already halfway gone.
+END
+
+ON: location.exit DO
+  IF: $event.from == "FRANK WHITMAN" && $event.origin == "DEN" DO
+    HOST:
+    Frank leaves the den carrying his fresh drink like a prop.
+  END
+END
+
+ON: location.enter DO
+  IF: $event.from == "FRANK WHITMAN" && $event.destination == "LIVING ROOM" DO
+    HOST:
+    Frank drifts into the living room.
+  END
+END
+
+ON: location.enter DO
+  IF: $event.from == "ELEANOR WHITMAN" && $event.destination == "PATIO" DO
+    HOST:
+    Eleanor comes through the screen door and finds Julia by the hydrangeas.
+  END
+END
+
+BLOCK: House Loop DO
+  SIMULATE: max 1 DO
+    CUE: FRANK WHITMAN DO
+      STATE: DO
+        public:
+          mood: strained
+        location:
+          place: LIVING ROOM
+          rel: in
+      END
+
+      SYSTEM PROMPT:
+      Keep Frank brittle, witty, and faintly self-destructive.
+
+      IF: visibleTo("FRANK WHITMAN", "ELEANOR WHITMAN") DO
+        USER PROMPT:
+        Eleanor is in view, so Frank lets the line land with performative ease.
+      END
+
+      IF: visibleTo("FRANK WHITMAN", "JULIA WHITMAN") == false DO
+        USER PROMPT:
+        Julia is out of sight, which makes Frank bolder and lonelier.
+      END
+    END
+
+    CUE: ELEANOR WHITMAN DO
+      STATE: DO
+        public:
+          mood: brittle
+        location:
+          place: PATIO
+          rel: by the doors
+      END
+
+      SYSTEM PROMPT:
+      Keep Eleanor precise, wounded, and controlled.
+
+      IF: visibleTo("ELEANOR WHITMAN", "JULIA WHITMAN") DO
+        USER PROMPT:
+        Julia is in front of her, and Eleanor wants control more than comfort.
+      END
+    END
+  END
+END
+
+SCENE: Cocktail Hour DO
+  RUN: House Loop
+
+  IF: visibleTo("FRANK WHITMAN", "ELEANOR WHITMAN") == false DO
+    HOST:
+    Frank is left performing to the glass.
+  END
+
+  IF: visibleTo("ELEANOR WHITMAN", "JULIA WHITMAN") DO
+    HOST:
+    Mother and daughter remain within speaking distance beneath the awning.
+  END
+END
+
+GOTO: Cocktail Hour

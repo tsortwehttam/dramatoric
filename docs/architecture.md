@@ -202,6 +202,60 @@ The session tracks: player info, author-defined variables, input queue, event hi
 
 Lookup checks stack first (top-down), then session state.
 
+### Entities as World State
+
+`ENTITY:` is also the engine's world-state primitive. It stores a stable persona plus arbitrary stats, and now has a small set of reserved keys that support spatial-social simulation without introducing a second DSL:
+
+- `kind`: broad category such as `person`, `place`, or `thing`
+- `public`: visible shared state
+- `private`: observer-local state visible only to self through `pov()`
+- `location`: containment/location data such as `{ place: "JURY ROOM", rel: "in" }`
+
+This keeps narrative flow and world topology separate:
+
+- `SCENE` is still a narrative jump target for `GOTO`
+- places are ordinary entities with `kind: place`
+
+The runtime derives subjective context from shared entity state with helper functions like `entity()`, `loc()`, `coLocated()`, `visibleTo()`, and `pov()`. Structured LLM outputs can then be applied back into entity state with `applyPatches()` and converted into ordinary story events with `emitActions()`.
+
+The intended authoring pattern is function-first: authors enter a simulation loop by using normal Dramatoric flow (`RUN`, `LOOP`, `IF`, `ON`, `LLM`) rather than by switching into a separate engine mode. If higher-level sugar is added later, it should desugar cleanly into that same block-and-event model.
+
+### Location Transition Events
+
+When an existing entity changes `location.place`, the runtime emits derived transition events:
+
+- `$exit`
+- `$depart`
+- `$enter`
+- `$arrive`
+
+These are ordinary story events, so authors can react with normal `ON:` handlers. The payload is carried in `event.result` with fields such as `entity`, `from`, `to`, `fromRel`, and `toRel`.
+
+Story termination still uses `$exit`, but only the engine-emitted exit signal from `ENGINE` ends the run. Entity movement `$exit` events are safe to observe with ordinary handlers.
+
+### Recommended Simulation Loop
+
+The recommended scheduler model is still block-and-event based, not a second runtime mode:
+
+1. Authored flow decides to `RUN` a simulation block.
+2. That block loops while a stop condition is not met.
+3. Each iteration chooses an actor, derives POV, gathers a structured step result, applies patches, and emits actions.
+4. The loop either continues or sets a stop/yield variable.
+5. Control returns to the caller, which decides whether to continue authored flow, ask for input, or `GOTO` elsewhere.
+
+This keeps the boundary explicit:
+
+- `RUN` enters a temporary simulation loop and returns
+- `GOTO` performs a narrative handoff
+- world movement remains observable through ordinary emitted events
+
+In practice, the most useful stop conditions are:
+
+- a story-facing event should interrupt and return control
+- no meaningful actions were emitted
+- a world predicate became true
+- a turn or time budget was reached
+
 ### Dynamic Content Variation
 
 The `[[option|option|option]]` syntax supports three modes:

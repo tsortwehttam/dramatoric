@@ -1,0 +1,105 @@
+---
+title: World State Example
+---
+
+ONCE: DO
+  HOST:
+  {{title}}
+END
+
+ON: location.exit DO
+  IF: $event.from == "ALICE" && $event.origin == "JURY ROOM" DO
+    HOST:
+    Alice departs {{$event.origin}}.
+  END
+END
+
+ON: location.enter DO
+  IF: $event.from == "ALICE" && $event.destination == "HALLWAY" DO
+    HOST:
+    Alice enters {{$event.destination}}.
+  END
+END
+
+BLOCK: Deliberation Loop DO
+  SIMULATE: until simStop == "player_input"; max 1 DO
+    CUE: ALICE DO
+      STATE: DO
+        public:
+          mood: open
+        location:
+          place: HALLWAY
+          rel: in
+      END
+
+      SYSTEM PROMPT:
+      Keep Alice concise and conciliatory.
+
+      IF: visibleTo("ALICE", "BOB") == false DO
+        USER PROMPT:
+        Bob is no longer in view, which gives Alice a little room to soften.
+      END
+
+      IF: stat("ALICE", "public.mood") == "open" DO
+        USER PROMPT:
+        Alice is trying to lower the temperature rather than win the argument.
+      END
+    END
+
+    SET: simStop "player_input"
+    INCR: simTurns 1
+  END
+END
+
+SCENE: Deliberation DO
+  ENTITY: JURY ROOM DO
+    kind: place
+    public:
+      label: Jury Room
+  END
+
+  ENTITY: HALLWAY DO
+    kind: place
+    public:
+      label: Hallway
+  END
+
+  ENTITY: ALICE DO
+    kind: person
+    public:
+      mood: guarded
+    private:
+      goal: get home
+    location:
+      place: JURY ROOM
+      rel: in
+    persona: You are Alice.
+  END
+
+  ENTITY: BOB DO
+    kind: person
+    public:
+      mood: tense
+    private:
+      goal: convict
+    location:
+      place: JURY ROOM
+      rel: in
+    persona: You are Bob.
+  END
+
+  SET: simTurns 0
+  SET: simStop null
+  SET: view {{pov("ALICE")}}
+  RUN: Deliberation Loop
+
+  HOST:
+  Alice sees {{getLength(view.people)}} other person and now feels {{stat("ALICE", "public.mood")}}.
+
+  IF: simStop == "player_input" DO
+    HOST:
+    Simulation yielded back to authored flow after {{simTurns}} step.
+  END
+END
+
+GOTO: Deliberation

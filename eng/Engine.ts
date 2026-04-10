@@ -49,6 +49,10 @@ import {
 } from "./Helpers";
 import { tokenize, tokensToKVP } from "./Lexer";
 import { renderTemplateTextSync } from "./Execution";
+import {
+  syncEntityState,
+} from "./functions/WorldFunctions";
+import { buildWorldExprFunctions } from "./functions/WorldExprFunctions";
 
 export type ContextCallbacks = {
   onEvent: (event: StoryEvent) => void;
@@ -57,6 +61,7 @@ export type ContextCallbacks = {
 
 export function createContext(io: IOFunc, session: StorySession, sources: StorySources, callbacks: ContextCallbacks) {
   const rng = createPRNG(session.seed, session.cycle);
+  let ctx: StoryEventContext;
 
   const get: GetFunc = <T extends SerialValue>(path: string) => {
     // Check scope stack before trying global state
@@ -129,7 +134,7 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
   function emit(partial: StrictPartialEvent): StoryEvent {
     const event = reifyEvent({ channel: "emit", ...partial }, rng.next);
     console.info("[event] emitted", event.type, event.value);
-    if (event.type === StoryEventType.$exit) {
+    if (event.type === StoryEventType.$exit && event.from === ENGINE && event.result == null) {
       ctx.exited = true;
     }
     // Emitted events automatically end up in the history
@@ -145,35 +150,6 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     await step(ctx);
   };
 
-  const stat: ExprEvalFunc = (id: SerialValue, key: SerialValue): SerialValue => {
-    const eid = castToString(id);
-    const ekey = castToString(key);
-    if (session.entities[eid]) {
-      return session.entities[eid].stats[ekey] ?? 0;
-    }
-    return 0;
-  };
-
-  const setStat: ExprEvalFunc = (id: SerialValue, key: SerialValue, value: SerialValue): SerialValue => {
-    const eid = castToString(id);
-    const ekey = castToString(key);
-    if (session.entities[eid]) {
-      session.entities[eid].stats[ekey] = value;
-      emit({
-        type: StoryEventType.$entity,
-        from: eid,
-        channel: "engine",
-        result: { [ekey]: value },
-      });
-      return value;
-    }
-    return 0;
-  };
-
-  const hasEntity: ExprEvalFunc = (id: SerialValue): SerialValue => {
-    return !!session.entities[castToString(id)];
-  };
-
   const include: ExprEvalFunc = (id: SerialValue, params: SerialValue = {}): SerialValue => {
     const name = castToString(id);
     const values =
@@ -186,9 +162,7 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
   const functions: Record<string, ExprEvalFunc> = {
     get: (key) => get(castToString(key)),
     set: (key, value) => set(castToString(key), value),
-    stat,
-    setStat,
-    hasEntity,
+    ...buildWorldExprFunctions(() => ctx),
     include,
   };
 
@@ -200,7 +174,7 @@ export function createContext(io: IOFunc, session: StorySession, sources: StoryS
     return runner.evaluate(expr, allVars, allFuncs);
   };
 
-  const ctx: StoryEventContext = {
+  ctx = {
     // This empty event lets callers hit event.* w/o null checks
     event: reifyEvent({ type: StoryEventType.$none, from: ENGINE }, rng.next),
     session,

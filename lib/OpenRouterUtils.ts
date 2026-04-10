@@ -5,7 +5,7 @@ import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { JsonSchema, NonEmpty, SerialValue } from "./CoreTypings";
 import { safeJsonParse } from "./JSONAndYAMLHelpers";
-import { LLM_SLUGS, LLMBackend, LLMInstruction, toDirectSlug } from "./LLMTypes";
+import { LLM_SLUGS, LLMBackend, LLMInstruction, structuredModelsForBackend, toDirectSlug } from "./LLMTypes";
 import {
   AIChatMessage,
   OpenRouterModerationCategories,
@@ -61,6 +61,50 @@ function prepRoute(models: NonEmpty<OpenAIChatModel>, online: boolean, backend: 
   return { model, fallbacks };
 }
 
+function isUnavailableModelError(err: unknown): boolean {
+  if (!err || typeof err !== "object") {
+    return false;
+  }
+
+  if ("status" in err && err.status === 404) {
+    return true;
+  }
+
+  const message =
+    "message" in err && typeof err.message === "string"
+      ? err.message
+      : "error" in err && err.error && typeof err.error === "object" && "message" in err.error && typeof err.error.message === "string"
+        ? err.error.message
+        : "";
+
+  if ("status" in err && err.status === 400 && /not a valid model id/i.test(message)) {
+    return true;
+  }
+
+  if (!("error" in err) || !err.error || typeof err.error !== "object") {
+    return false;
+  }
+
+  return ("code" in err.error && err.error.code === 404) || ("code" in err.error && err.error.code === 400 && /not a valid model id/i.test(message));
+}
+
+async function retryUnavailableModel<T>(
+  models: NonEmpty<OpenAIChatModel>,
+  run: (route: { model: string; fallbacks: string[] }) => Promise<T>,
+  online: boolean,
+  backend: LLMBackend,
+): Promise<T> {
+  const route = prepRoute(models, online, backend);
+  return run(route).catch(async (err) => {
+    if (!isUnavailableModelError(err) || models.length <= 1) {
+      throw err;
+    }
+
+    console.warn(`Model unavailable, retrying with fallback: ${route.model}`);
+    return retryUnavailableModel(models.slice(1) as NonEmpty<OpenAIChatModel>, run, online, backend);
+  });
+}
+
 export async function generateText(
   openai: OpenAI,
   instructions: LLMInstruction[],
@@ -68,12 +112,17 @@ export async function generateText(
   models: NonEmpty<OpenAIChatModel>,
   backend: LLMBackend = "openrouter",
 ) {
-  const { model, fallbacks } = prepRoute(models, useWebSearch, backend);
-  const r = await openai.chat.completions.create({
-    model,
-    messages: instructionsToMessages(instructions),
-    ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
-  });
+  const r = await retryUnavailableModel(
+    models,
+    ({ model, fallbacks }) =>
+      openai.chat.completions.create({
+        model,
+        messages: instructionsToMessages(instructions),
+        ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
+      }),
+    useWebSearch,
+    backend,
+  );
   return readText(r as any);
 }
 
@@ -116,7 +165,6 @@ export async function generateJson(
   models: NonEmpty<OpenAIChatModel>,
   backend: LLMBackend = "openrouter",
 ): Promise<Record<string, SerialValue>> {
-  const { model, fallbacks } = prepRoute(models, false, backend);
   const preface = [
     "Follow the user's prompt.",
     "Return ONLY a valid JSON object.",
@@ -134,12 +182,18 @@ export async function generateJson(
   if (messages.length === 1) {
     messages.push({ role: "user", content: "" });
   }
-  const r = await openai.chat.completions.create({
-    model,
-    messages,
-    response_format: schema ? { type: "json_object" } : { type: "text" },
-    ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
-  });
+  const r = await retryUnavailableModel(
+    models,
+    ({ model, fallbacks }) =>
+      openai.chat.completions.create({
+        model,
+        messages,
+        response_format: schema ? { type: "json_object" } : { type: "text" },
+        ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
+      }),
+    false,
+    backend,
+  );
   const txt = readText(r as any) || "{}";
   return JSON.parse(txt);
 }
@@ -151,26 +205,29 @@ export async function generateJsonWithSchema<T = Record<string, unknown>>(
   models: NonEmpty<OpenAIChatModel>,
   backend: LLMBackend = "openrouter",
 ): Promise<T | null> {
-  const { model, fallbacks } = prepRoute(models, false, backend);
-  const messages = instructionsToMessages(instructions);
-  const r = await openrouter.chat.completions
-    .create({
-      model,
-      messages,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "well_schema",
-          schema,
-          strict: true,
+  const structuredModels = structuredModelsForBackend(models, backend);
+  const r = await retryUnavailableModel(
+    structuredModels,
+    ({ model, fallbacks }) =>
+      openrouter.chat.completions.create({
+        model,
+        messages: instructionsToMessages(instructions),
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "well_schema",
+            schema,
+            strict: true,
+          },
         },
-      },
-      ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
-    })
-    .catch((err) => {
-      console.warn("Failed to generate structured JSON", err);
-      return null;
-    });
+        ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
+      }),
+    false,
+    backend,
+  ).catch((err) => {
+    console.warn("Failed to generate structured JSON", err);
+    return null;
+  });
   if (!r) {
     return null;
   }
@@ -217,30 +274,36 @@ export async function generateChatResponse<T>(
   schema: z.ZodType<T> | JsonSchema | null = null,
   backend: LLMBackend = "openrouter",
 ): Promise<string | T | null> {
-  const { model, fallbacks } = prepRoute(models, true, backend);
   const zodSchema = isZodSchema(schema) ? schema : null;
   const jsonSchema = schema
     ? isZodSchema(schema)
       ? (zodToJsonSchema(schema, { $refStrategy: "none" }) as JsonSchema)
       : schema
     : null;
-  const response = await openai.chat.completions.create({
-    model,
-    messages: asInput(messages),
-    ...(jsonSchema
-      ? {
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "response_schema",
-              schema: jsonSchema,
-              strict: true,
-            },
-          },
-        }
-      : {}),
-    ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
-  });
+  const routedModels = jsonSchema ? structuredModelsForBackend(models, backend) : models;
+  const response = await retryUnavailableModel(
+    routedModels,
+    ({ model, fallbacks }) =>
+      openai.chat.completions.create({
+        model,
+        messages: asInput(messages),
+        ...(jsonSchema
+          ? {
+              response_format: {
+                type: "json_schema",
+                json_schema: {
+                  name: "response_schema",
+                  schema: jsonSchema,
+                  strict: true,
+                },
+              },
+            }
+          : {}),
+        ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
+      }),
+    true,
+    backend,
+  );
   const txt = readText(response as any);
   if (!schema) {
     return txt;

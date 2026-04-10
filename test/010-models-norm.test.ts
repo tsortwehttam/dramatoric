@@ -1,4 +1,13 @@
-import { DEFAULT_LLM_SLUGS, defaultsForBackend, normalizeModels, slugsForBackend, toDirectSlug } from "../lib/LLMTypes";
+import {
+  DEFAULT_LLM_SLUGS,
+  defaultsForBackend,
+  LLMSlug,
+  normalizeModels,
+  slugsForBackend,
+  structuredModelsForBackend,
+  toDirectSlug,
+} from "../lib/LLMTypes";
+import { NonEmpty } from "../lib/CoreTypings";
 import { expect } from "./TestUtils";
 
 async function test() {
@@ -30,17 +39,14 @@ async function test() {
 
   // Test with uncensored tag
   expect(normalizeModels({ models: [] }, "uncensored"), [
-    "nothingiisreal/mn-celeste-12b",
     "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
     ...DEFAULT_LLM_SLUGS,
   ]);
 
   const expectedWriting = [
-    "nothingiisreal/mn-celeste-12b",
     "thedrummer/rocinante-12b",
     "mistralai/mistral-small-creative",
     "google/gemini-pro-1.5",
-    "anthropic/claude-3.5-opus",
     "moonshotai/kimi-k2-0905",
     "moonshotai/kimi-k2",
     "moonshotai/kimi-k2-0905:exacto",
@@ -50,7 +56,7 @@ async function test() {
     "anthropic/claude-sonnet-4",
     "anthropic/claude-3.5-sonnet",
     ...DEFAULT_LLM_SLUGS,
-  ];
+  ] as const;
 
   expect(normalizeModels({ models: [] }, "WRITING"), expectedWriting);
   expect(normalizeModels({ models: [] }, "writing"), expectedWriting);
@@ -130,6 +136,24 @@ async function test() {
   const anthropicDefaults = defaultsForBackend("anthropic");
   expect(anthropicDefaults.every((s) => s.startsWith("anthropic/")), true);
   expect(anthropicDefaults.length > 0, true);
+
+  const writingModels = [...expectedWriting] as NonEmpty<LLMSlug>;
+  const writingModelsWithGpt5 = ["openai/gpt-5", ...expectedWriting] as NonEmpty<LLMSlug>;
+
+  expect(structuredModelsForBackend(writingModels, "openrouter"), [
+    "anthropic/claude-sonnet-4.5",
+    "anthropic/claude-sonnet-4",
+    "anthropic/claude-3.5-sonnet",
+    ...DEFAULT_LLM_SLUGS,
+  ]);
+  expect(structuredModelsForBackend(writingModelsWithGpt5, "openrouter"), [
+    "openai/gpt-5",
+    "anthropic/claude-sonnet-4.5",
+    "anthropic/claude-sonnet-4",
+    "anthropic/claude-3.5-sonnet",
+    ...DEFAULT_LLM_SLUGS,
+  ]);
+  expect(structuredModelsForBackend(["anthropic/claude-sonnet-4"], "anthropic"), ["anthropic/claude-sonnet-4"]);
 }
 
 test();

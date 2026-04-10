@@ -387,10 +387,10 @@ EMIT: type someEvent; from hero; mood "tense"
 ## ENTITY
 
 **Summary**
-Declare or update a named entity with stats and a persona (modus).
+Declare or update a named entity with stats and a persona.
 The body is parsed in multiple passes: first as structured data (JSON/YAML),
 then as raw persona text. Redeclaring the same entity merges stats and replaces
-the modus.
+the persona.
 
 **Syntax**
 ```dramatoric
@@ -415,6 +415,20 @@ ENTITY: RATZ; health 100; mood "calm" DO
 END
 ```
 
+```dramatoric
+ENTITY: ALICE DO
+  kind: person
+  public:
+    mood: guarded
+  private:
+    goal: get home
+  location:
+    place: JURY ROOM
+    rel: in
+  persona: You are Alice, a skeptical juror.
+END
+```
+
 **Examples**
 ```dramatoric
 ENTITY: GUARD DO
@@ -433,10 +447,13 @@ END
 
 **Notes**
 - If the body parses as structured data with a `persona` field, that field
-  becomes the entity's modus and remaining fields become stats.
+  becomes the entity's persona and remaining fields become stats.
 - If the body does not parse as structured data, it is treated as raw persona text.
 - Inline parameters (after semicolons) are merged into stats.
-- Redeclaring the same entity merges new stats and replaces the modus.
+- Redeclaring the same entity merges new stats and replaces the persona.
+- Reserved world-state keys `public`, `private`, and `location` merge shallowly.
+- Changing `location.place` on an existing entity emits `location.move`
+  plus derived `location.exit` and `location.enter` events.
 - When a speaker name matches a registered entity, the entity's persona is
   automatically injected into dialogue generation.
 - Access entity stats with `stat("ENTITY_NAME", "statKey")`.

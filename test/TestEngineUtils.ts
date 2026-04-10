@@ -1,6 +1,8 @@
 import { compileCartridge } from "../eng/Compiler";
 import { ContextCallbacks, createContext, step } from "../eng/Engine";
 import { reifyCartridge, reifySession, singleLineEvent, StoryCartridge, StorySession } from "../eng/Helpers";
+import { JsonSchema } from "../lib/CoreTypings";
+import { LLMInstruction } from "../lib/LLMTypes";
 import { createIO } from "../eng/io/WellBackendIO";
 import { loadEnv } from "../env";
 import { stringizeBufferObj } from "../lib/BufferUtils";
@@ -40,6 +42,20 @@ export async function execMultiStepTest(
     }
     await step(ctx);
   }
+  ctx.session.history.forEach((event) => console.info(singleLineEvent(event)));
+  return ctx.session;
+}
+
+export async function execStoryTestWithLlm(
+  src: string | StoryCartridge,
+  partial: Partial<StorySession>,
+  llm: (instructions: LLMInstruction[], schema: JsonSchema, models: string[]) => unknown | Promise<unknown>,
+) {
+  const ctx = createTestContext(src, cloneSession(partial), true);
+  ctx.llm = async (instructions, schema, options) => {
+    return (await llm(instructions, schema, options?.models ?? [])) ?? null;
+  };
+  await step(ctx);
   ctx.session.history.forEach((event) => console.info(singleLineEvent(event)));
   return ctx.session;
 }

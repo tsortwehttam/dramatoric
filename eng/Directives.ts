@@ -20,6 +20,14 @@ import { PRELUDE_directive } from "./directives/PreludeResumeEpilogueDirective";
 import { RENDER_directive } from "./directives/RenderDirective";
 import { ROOT_directive } from "./directives/RootGroupDirective";
 import { LOAD_directive, SAVE_directive } from "./directives/SaveLoadDirectives";
+import {
+  ACT_directive,
+  CUE_directive,
+  SAY_directive,
+  SIMULATE_directive,
+  STATE_directive,
+  WITH_directive,
+} from "./directives/SimulationDirectives";
 import { SET_directive } from "./directives/SetDirective";
 import { SUSPEND_directive } from "./directives/SuspendDirective";
 import { TEXT_directive } from "./directives/TextDirective";
@@ -45,6 +53,12 @@ DIRECTIVES.push(EACH_directive);
 DIRECTIVES.push(EXIT_directive);
 DIRECTIVES.push(EMIT_directive);
 DIRECTIVES.push(ENTITY_directive);
+DIRECTIVES.push(SIMULATE_directive);
+DIRECTIVES.push(CUE_directive);
+DIRECTIVES.push(WITH_directive);
+DIRECTIVES.push(STATE_directive);
+DIRECTIVES.push(SAY_directive);
+DIRECTIVES.push(ACT_directive);
 DIRECTIVES.push(FETCH_directive);
 DIRECTIVES.push(GOTO_directive);
 DIRECTIVES.push(SCENE_directive);

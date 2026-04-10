@@ -194,6 +194,8 @@ export type StoryEvent = {
   type: StoryEventType | string;
   from: string; // Actor id (may be the player, an NPC id, or the engine itself)
   to: string[]; // Direct recipient ids
+  origin: string | null; // World place/entity the event originated from, when applicable
+  destination: string | null; // World place/entity the event moved toward, when applicable
   obs: string[]; // Ids of those who see the event
   excl: string[]; // Ids of those who explicitly *cannot* see the event
   value: string; // Normalized semantic content; may be same as 'raw'
@@ -350,6 +352,8 @@ export const reifyEvent = (input: StrictPartialEvent, random: () => number): Sto
     channel: "engine",
     from,
     to: [],
+    origin: null,
+    destination: null,
     obs: [],
     excl: [],
     value: "",
@@ -452,9 +456,16 @@ export const LOOP_TYPE = "LOOP";
 export const GOTO_TYPE = "GOTO";
 export const DONE_TYPE = "DONE";
 export const ENTITY_TYPE = "ENTITY";
+export const SIMULATE_TYPE = "SIMULATE";
+export const CUE_TYPE = "CUE";
+export const WITH_TYPE = "WITH";
+export const STATE_TYPE = "STATE";
+export const SAY_TYPE = "SAY";
+export const ACT_TYPE = "ACT";
 export const PRELUDE_TYPE = "PRELUDE";
 export const RESUME_TYPE = "RESUME";
 export const EPILOGUE_TYPE = "EPILOGUE";
+export const CURRENT_ACTOR_KEY = "$actor";
 
 export const EVENT_HANDLERS = [ON_TYPE, ONCE_TYPE, PRELUDE_TYPE, RESUME_TYPE, EPILOGUE_TYPE];
 
@@ -501,6 +512,12 @@ export const DIRECTIVE_TYPES = [
   LOOP_TYPE,
   DONE_TYPE,
   ENTITY_TYPE,
+  SIMULATE_TYPE,
+  CUE_TYPE,
+  WITH_TYPE,
+  STATE_TYPE,
+  SAY_TYPE,
+  ACT_TYPE,
   PRELUDE_TYPE,
   RESUME_TYPE,
   EPILOGUE_TYPE,

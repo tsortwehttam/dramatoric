@@ -2,16 +2,17 @@ import { SerialValue } from "../../lib/CoreTypings";
 import { safeJsonOrYamlParse } from "../../lib/JSONAndYAMLHelpers";
 import { isBlank } from "../../lib/TextHelpers";
 import { readBody } from "../Execution";
-import { ENTITY_TYPE, StoryDirectiveFuncDef, StoryEventContext, StoryEventType } from "../Helpers";
+import { mergeEntityStats, syncEntityState } from "../functions/WorldFunctions";
+import { ENTITY_TYPE, readNamedClause, StoryDirectiveFuncDef, StoryEventContext } from "../Helpers";
 
 /**
  * ## ENTITY
  *
  * **Summary**
- * Declare or update a named entity with stats and a persona (modus).
+ * Declare or update a named entity with stats and a persona.
  * The body is parsed in multiple passes: first as structured data (JSON/YAML),
  * then as raw persona text. Redeclaring the same entity merges stats and replaces
- * the modus.
+ * the persona.
  *
  * **Syntax**
  * ```dramatoric
@@ -36,6 +37,20 @@ import { ENTITY_TYPE, StoryDirectiveFuncDef, StoryEventContext, StoryEventType }
  * END
  * ```
  *
+ * ```dramatoric
+ * ENTITY: ALICE DO
+ *   kind: person
+ *   public:
+ *     mood: guarded
+ *   private:
+ *     goal: get home
+ *   location:
+ *     place: JURY ROOM
+ *     rel: in
+ *   persona: You are Alice, a skeptical juror.
+ * END
+ * ```
+ *
  * **Examples**
  * ```dramatoric
  * ENTITY: GUARD DO
@@ -54,10 +69,13 @@ import { ENTITY_TYPE, StoryDirectiveFuncDef, StoryEventContext, StoryEventType }
  *
  * **Notes**
  * - If the body parses as structured data with a `persona` field, that field
- *   becomes the entity's modus and remaining fields become stats.
+ *   becomes the entity's persona and remaining fields become stats.
  * - If the body does not parse as structured data, it is treated as raw persona text.
  * - Inline parameters (after semicolons) are merged into stats.
- * - Redeclaring the same entity merges new stats and replaces the modus.
+ * - Redeclaring the same entity merges new stats and replaces the persona.
+ * - Reserved world-state keys `public`, `private`, and `location` merge shallowly.
+ * - Changing `location.place` on an existing entity emits `location.move`
+ *   plus derived `location.exit` and `location.enter` events.
  * - When a speaker name matches a registered entity, the entity's persona is
  *   automatically injected into dialogue generation.
  * - Access entity stats with `stat("ENTITY_NAME", "statKey")`.
@@ -65,7 +83,7 @@ import { ENTITY_TYPE, StoryDirectiveFuncDef, StoryEventContext, StoryEventType }
 export const ENTITY_directive: StoryDirectiveFuncDef = {
   type: [ENTITY_TYPE],
   func: async (node, ctx, pms) => {
-    const name = pms.keys[0];
+    const name = pms.clauses[0]?.trim() ?? readNamedClause(pms);
     if (!name) {
       return;
     }
@@ -79,9 +97,11 @@ export const ENTITY_directive: StoryDirectiveFuncDef = {
     }
 
     const existing = ctx.session.entities[name];
+    const prev = existing
+      ? cloneLocationValue(Object.prototype.hasOwnProperty.call(existing.stats, "location") ? existing.stats.location : null)
+      : undefined;
     if (existing) {
-      // Merge: update stats, replace modus and persona
-      Object.assign(existing.stats, stats);
+      existing.stats = mergeEntityStats(existing.stats, stats);
       existing.modus = node;
       if (persona) {
         existing.persona = persona;
@@ -94,22 +114,13 @@ export const ENTITY_directive: StoryDirectiveFuncDef = {
       };
     }
 
-    // Also expose a flat state variable for simple access like {{RATZ.health}}
-    ctx.set(name, { ...stats, persona } as SerialValue);
-
-    const entity = ctx.session.entities[name];
-    ctx.emit({
-      type: StoryEventType.$entity,
-      from: name,
-      channel: "engine",
-      result: { ...entity.stats, persona: entity.persona },
-    });
-
-    return [entity.stats];
+    syncEntityState(ctx, name, prev);
+    return [ctx.session.entities[name].stats];
   },
 };
 
 const PERSONA_KEYS = new Set(["persona", "modus", "description", "character", "bio"]);
+const NESTED_SECTION_KEYS = new Set(["public", "private", "location"]);
 
 function parseEntityBody(body: string): {
   stats: Record<string, SerialValue>;
@@ -119,8 +130,7 @@ function parseEntityBody(body: string): {
     return { stats: {}, persona: "" };
   }
 
-  // Pass 1: Try structured data (JSON/YAML)
-  const parsed = safeJsonOrYamlParse(body);
+  const parsed = parseEntityRecordBody(body);
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     const record = parsed as Record<string, SerialValue>;
     const stats: Record<string, SerialValue> = {};
@@ -139,6 +149,84 @@ function parseEntityBody(body: string): {
 
   // Pass 2: Raw persona text
   return { stats: {}, persona: body };
+}
+
+export function parseEntityRecordBody(body: string): SerialValue {
+  const trimmed = body.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    return safeJsonOrYamlParse(body);
+  }
+
+  const parsed = parseFlatStructuredLines(body);
+  if (parsed) {
+    return parsed;
+  }
+
+  return safeJsonOrYamlParse(body);
+}
+
+function parseFlatStructuredLines(body: string): Record<string, SerialValue> | null {
+  const lines = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    return null;
+  }
+
+  const out: Record<string, SerialValue> = {};
+  let section: string | null = null;
+  let sawStructured = false;
+
+  for (const line of lines) {
+    const header = line.match(/^([^:]+):\s*$/);
+    if (header) {
+      section = header[1]!.trim();
+      if (!NESTED_SECTION_KEYS.has(section)) {
+        return null;
+      }
+      out[section] = {};
+      sawStructured = true;
+      continue;
+    }
+
+    const pair = line.match(/^([^:]+):\s*(.+)$/);
+    if (!pair) {
+      return null;
+    }
+
+    const key = pair[1]!.trim();
+    const value = safeJsonOrYamlParse(pair[2]!.trim());
+    sawStructured = true;
+
+    if (
+      section &&
+      !PERSONA_KEYS.has(key.toLowerCase()) &&
+      !RESERVED_WORLD_ROOT_KEYS.has(key) &&
+      typeof out[section] === "object" &&
+      out[section] !== null &&
+      !Array.isArray(out[section])
+    ) {
+      (out[section] as Record<string, SerialValue>)[key] = value;
+      continue;
+    }
+
+    section = null;
+    out[key] = value;
+  }
+
+  return sawStructured ? out : null;
+}
+
+const RESERVED_WORLD_ROOT_KEYS = new Set(["kind", "public", "private", "location"]);
+
+function cloneLocationValue(value: SerialValue): SerialValue {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  return { ...(value as Record<string, SerialValue>) };
 }
 
 export function resolveEntityPersona(speaker: string, ctx: StoryEventContext): string {

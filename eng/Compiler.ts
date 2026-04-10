@@ -7,6 +7,7 @@ import { createPRNG } from "../lib/RandHelpers";
 import { isPresent } from "../lib/TextHelpers";
 import { mutativeMerge } from "../lib/ValueHelpers";
 import { createLoadedRunner } from "./Evaluator";
+import { buildCompileWorldExprFunctions } from "./functions/WorldExprFunctions";
 import {
   dumpNode,
   EVENT_KEY,
@@ -339,7 +340,7 @@ export function compileCartridge(cartridge: StoryCartridge, errors: ErrorBase[] 
   });
 
   // Quick static analysis of script-like expressions
-  const runner = createLoadedRunner(createPRNG("compile"));
+  const runner = createLoadedRunner(createPRNG("compile"), {}, buildCompileWorldExprFunctions());
   const vars = collectCompileVars(root, meta);
   walkTree(root, (node) => {
     const suspicious = findSuspiciousImplicitBodyLine(node);

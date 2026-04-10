@@ -81,7 +81,27 @@ export const DEFAULT_LLM_SLUGS: NonEmpty<(typeof LLM_SLUGS)[number]> = [
   "openai/gpt-4.1-nano",
 ];
 
+export const UNAVAILABLE_LLM_SLUGS = ["nothingiisreal/mn-celeste-12b", "anthropic/claude-3.5-opus"] as const;
+export const STRUCTURED_LLM_SLUGS = [
+  "openai/gpt-5",
+  "openai/gpt-5-mini",
+  "openai/gpt-5-nano",
+  "openai/gpt-4.1",
+  "openai/gpt-4.1-mini",
+  "openai/gpt-4.1-nano",
+  "openai/gpt-4o",
+  "openai/gpt-4o-mini",
+  "anthropic/claude-3.5-sonnet",
+  "anthropic/claude-sonnet-4",
+  "anthropic/claude-sonnet-4.5",
+  "anthropic/claude-3.5-opus",
+] as const;
+
 export type LLMSlug = (typeof LLM_SLUGS)[number];
+
+function isUnavailableSlug(slug: LLMSlug): boolean {
+  return UNAVAILABLE_LLM_SLUGS.includes(slug as (typeof UNAVAILABLE_LLM_SLUGS)[number]);
+}
 
 export const IMAGE_MODEL_SLUGS = [
   "google/gemini-2.5-flash-image-preview",
@@ -114,14 +134,16 @@ export function normalizeModels(
     }
     const upper = modelString.toUpperCase();
     if (LLM_MODEL_TAGS.includes(upper as (typeof LLM_MODEL_TAGS)[number])) {
-      const taggedModels = LLM_SLUGS.filter((slug) => LLM_SLUGS_TAGGED[slug].includes(upper as any));
+      const taggedModels = LLM_SLUGS.filter(
+        (slug) => !isUnavailableSlug(slug) && LLM_SLUGS_TAGGED[slug].includes(upper as any),
+      );
       taggedModels.forEach((slug) => {
         out.unshift(slug);
       });
       return;
     }
     const lower = modelString.toLowerCase();
-    const matchedSlug = LLM_SLUGS.find((slug) => slug.toLowerCase() === lower);
+    const matchedSlug = LLM_SLUGS.find((slug) => slug.toLowerCase() === lower && !isUnavailableSlug(slug));
     if (matchedSlug) {
       out.unshift(matchedSlug);
     }
@@ -149,9 +171,10 @@ export function toDirectSlug(slug: string, backend: LLMBackend): string | null {
 }
 
 export function slugsForBackend(backend: LLMBackend): LLMSlug[] {
-  if (backend === "openrouter") return [...LLM_SLUGS];
-  if (backend === "anthropic") return LLM_SLUGS.filter((s) => s.startsWith("anthropic/"));
-  return LLM_SLUGS.filter((s) => s.startsWith("openai/"));
+  const available = LLM_SLUGS.filter((slug) => !isUnavailableSlug(slug));
+  if (backend === "openrouter") return [...available];
+  if (backend === "anthropic") return available.filter((s) => s.startsWith("anthropic/"));
+  return available.filter((s) => s.startsWith("openai/"));
 }
 
 export function defaultsForBackend(backend: LLMBackend): NonEmpty<LLMSlug> {
@@ -162,4 +185,15 @@ export function defaultsForBackend(backend: LLMBackend): NonEmpty<LLMSlug> {
   }
   const openaiOnly = DEFAULT_LLM_SLUGS.filter((s) => s.startsWith("openai/"));
   return openaiOnly.length > 0 ? (openaiOnly as NonEmpty<LLMSlug>) : ["openai/gpt-4.1-mini"];
+}
+
+export function structuredModelsForBackend(
+  models: NonEmpty<LLMSlug>,
+  backend: LLMBackend,
+): NonEmpty<LLMSlug> {
+  const direct = models.filter((slug) => STRUCTURED_LLM_SLUGS.includes(slug as (typeof STRUCTURED_LLM_SLUGS)[number]));
+  if (direct.length > 0) {
+    return uniq([...direct, ...defaultsForBackend(backend)]) as NonEmpty<LLMSlug>;
+  }
+  return defaultsForBackend(backend);
 }

@@ -442,6 +442,99 @@ MR. COLLINS:
 
 Entities give characters persistent identity: automatic in-character dialogue, trackable stats, and mid-story updates.
 
+## World State and POV
+
+`ENTITY:` can also hold shared world state. Keep `SCENE` for narrative flow and use entity `kind`, `public`, `private`, and `location` for simulation data.
+
+```well
+BLOCK: World State Example DO
+  ENTITY: JURY ROOM DO
+    kind: place
+    public:
+      label: Jury Room
+  END
+
+  ENTITY: ALICE DO
+    kind: person
+    public:
+      mood: guarded
+    private:
+      goal: get home
+    location:
+      place: JURY ROOM
+      rel: in
+    persona: You are Alice, a skeptical juror.
+  END
+
+  ENTITY: BOB DO
+    kind: person
+    public:
+      mood: tense
+    private:
+      goal: convict
+    location:
+      place: JURY ROOM
+      rel: in
+    persona: You are Bob, an impatient juror.
+  END
+```
+
+Use `entity()`, `loc()`, `coLocated()`, `visibleTo()`, and `pov()` to derive subjective context from shared state.
+
+```well
+  SET: aliceView {{pov("ALICE")}}
+  SET: sameRoom {{coLocated("ALICE", "BOB")}}
+END
+```
+
+Location changes emit normal events too. If an entity moves from one place to another, Dramatoric emits `location.move` plus the derived `location.exit` and `location.enter` events, which ordinary `ON:` handlers can react to.
+
+```well
+ON: location.enter DO
+  IF: $event.from == "ALICE" DO
+    NARRATOR:
+    Alice enters {{$event.destination}}.
+  END
+END
+```
+
+You can then drive an agent step with ordinary Dramatoric flow. The engine does not need a separate "simulation mode" to do this. A normal `RUN:` block or loop can call an LLM, apply structured patches, emit actions, and then return to authored flow.
+
+```well
+SET: simTurns 0
+SET: simStop null
+
+BLOCK: Deliberation Loop DO
+  SIMULATE: until simStop == "player_input"; max 1 DO
+    CUE: ALICE
+
+    WITH: DO
+      STATE: DO
+        public:
+          mood: open
+        location:
+          place: HALLWAY
+          rel: in
+      END
+
+      SAY: to BOB
+      Let's walk through the evidence again.
+    END
+
+    SET: simStop "player_input"
+    INCR: simTurns 1
+  END
+END
+```
+
+That keeps simulation idiomatic: shared state in entities, subjective context as functions, normal blocks and events for control flow, and structured output for state mutation. The recommended loop contract is:
+
+- choose an actor
+- derive POV
+- update world state
+- emit dialogue or actions
+- either continue, or set a stop/yield variable and return to authored flow
+
 ## Reusable Blocks and Random Variation
 
 `BLOCK:` defines a reusable passage. `RUN:` executes it wherever you need it.

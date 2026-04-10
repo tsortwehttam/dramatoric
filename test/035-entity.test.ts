@@ -35,6 +35,28 @@ async function test() {
   expect(result.entities.GUARD.persona, "You are a stern palace guard.");
   expect(result.entities.GUARD.stats, { health: 50, mood: "stern" });
 
+  result = await execStoryTest(
+    dedent`
+      ENTITY: ALICE DO
+        kind: person
+        public:
+          mood: guarded
+        private:
+          goal: get home
+        location:
+          place: JURY_ROOM
+          rel: in
+        persona: You are Alice.
+      END
+    `,
+    {},
+    MOCK
+  );
+  expect(result.entities.ALICE.stats.kind, "person");
+  expectHas(result.entities.ALICE.stats.public, { mood: "guarded" });
+  expectHas(result.entities.ALICE.stats.private, { goal: "get home" });
+  expectHas(result.entities.ALICE.stats.location, { place: "JURY_ROOM", rel: "in" });
+
   // ENTITY with inline stats via params
   result = await execStoryTest(
     dedent`
@@ -66,6 +88,37 @@ async function test() {
   expect(result.entities.RATZ.stats.health, 50);
   expect(result.entities.RATZ.stats.wounded, true);
   expect(result.entities.RATZ.persona, "You are Ratz, a wounded bartender.");
+
+  result = await execStoryTest(
+    dedent`
+      ENTITY: ALICE DO
+        kind: person
+        public:
+          mood: guarded
+          stance: seated
+        private:
+          goal: get home
+        location:
+          place: JURY_ROOM
+          rel: in
+        persona: You are Alice.
+      END
+
+      ENTITY: ALICE DO
+        public:
+          mood: open
+        private:
+          belief: maybe innocent
+        location:
+          rel: near door
+      END
+    `,
+    {},
+    MOCK
+  );
+  expectHas(result.entities.ALICE.stats.public, { mood: "open", stance: "seated" });
+  expectHas(result.entities.ALICE.stats.private, { goal: "get home", belief: "maybe innocent" });
+  expectHas(result.entities.ALICE.stats.location, { place: "JURY_ROOM", rel: "near door" });
 
   // ENTITY exposes stats via stat() function
   result = await execStoryTest(
@@ -111,6 +164,36 @@ async function test() {
   );
   expect(result.state.hasRatz, true);
   expect(result.state.hasBob, false);
+
+  result = await execStoryTest(
+    dedent`
+      ENTITY: PLACE_A DO
+        kind: place
+      END
+
+      ENTITY: ALICE DO
+        kind: person
+        location:
+          place: PLACE_A
+        public:
+          mood: calm
+        private:
+          secret: hidden
+        persona: You are Alice.
+      END
+
+      SET: alice {{entity("ALICE")}}
+      SET: where {{loc("ALICE")}}
+    `,
+    {},
+    MOCK
+  );
+  expectHas(result.state.alice, {
+    name: "ALICE",
+    kind: "person",
+    persona: "You are Alice.",
+  });
+  expectHas(result.state.where, { place: "PLACE_A" });
 
   // ENTITY with empty body
   result = await execStoryTest(

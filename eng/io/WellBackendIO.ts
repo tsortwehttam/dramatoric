@@ -5,7 +5,10 @@ import OpenAI from "openai";
 import { join, sep } from "path";
 import { cwd } from "process";
 import { Env } from "../../env";
-import { generateJsonWithSchema as anthropicGenerateJsonWithSchema } from "../../lib/AnthropicUtils";
+import {
+  generateJsonWithSchema as anthropicGenerateJsonWithSchema,
+  generateText as anthropicGenerateText,
+} from "../../lib/AnthropicUtils";
 import { Cache } from "../../lib/Cache";
 import { autoFindVoiceId, composeTrack, generateSoundEffect, generateSpeechClip } from "../../lib/ElevenLabsUtils";
 import { castToBoolean } from "../../lib/EvalCasting";
@@ -19,7 +22,7 @@ import {
   OPENROUTER_BASE_URL,
 } from "../../lib/LLMTypes";
 import { LocalCache } from "../../lib/LocalCache";
-import { generateJsonWithSchema } from "../../lib/OpenRouterUtils";
+import { generateJsonWithSchema, generateText } from "../../lib/OpenRouterUtils";
 import { S3Cache } from "../../lib/S3Cache";
 import { generatePredictableKey, isBlank, parameterize } from "../../lib/TextHelpers";
 import { LibraryVoiceSpec } from "../../lib/VoiceHelpers";
@@ -84,6 +87,24 @@ export type IOConfig = {
   voices: LibraryVoiceSpec[];
 };
 
+function isTextSchema(schema: unknown): boolean {
+  if (!schema || typeof schema !== "object") {
+    return true;
+  }
+
+  if (Object.keys(schema).length === 0) {
+    return true;
+  }
+
+  if (!("type" in schema) || schema.type !== "object") {
+    return false;
+  }
+
+  const props = "properties" in schema && schema.properties && typeof schema.properties === "object" ? schema.properties : null;
+  const reqs = "required" in schema && Array.isArray(schema.required) ? schema.required : null;
+  return !!props && Object.keys(props).length === 0 && !!reqs && reqs.length === 0;
+}
+
 export function createIO(env: Env, config: Partial<IOConfig> = {}): IOFunc {
   if (castToBoolean(env.MOCK_PROVIDER)) {
     return createMockIO();
@@ -110,22 +131,27 @@ export function createIO(env: Env, config: Partial<IOConfig> = {}): IOFunc {
         const promptKey = JSON.stringify(r.instructions);
         const idemp = `${JSON.stringify(models)}:${promptKey}:${schemaStr}`;
         const key = generatePredictableKey("json", idemp, "json");
+        const textSchema = isTextSchema(r.schema);
 
         const cached = await cache.get(key);
         if (cached) {
-          return JSON.parse(cached.toString()) as IOResult<K>;
+          return (textSchema ? cached.toString() : JSON.parse(cached.toString())) as IOResult<K>;
         }
 
-        const result = anthropic
-          ? await anthropicGenerateJsonWithSchema(anthropic, r.instructions, r.schema, models)
-          : await generateJsonWithSchema(openai!, r.instructions, r.schema, models, backend);
+        const result = textSchema
+          ? anthropic
+            ? await anthropicGenerateText(anthropic, r.instructions, models)
+            : await generateText(openai!, r.instructions, false, models, backend)
+          : anthropic
+            ? await anthropicGenerateJsonWithSchema(anthropic, r.instructions, r.schema, models)
+            : await generateJsonWithSchema(openai!, r.instructions, r.schema, models, backend);
         if (!result) {
           console.warn("[io] Failed to generate JSON");
           return null as IOResult<K>;
         }
 
-        const buffer = Buffer.from(JSON.stringify(result, null, 2));
-        await cache.set(key, buffer, "application/json");
+        const serialized = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+        await cache.set(key, Buffer.from(serialized), typeof result === "string" ? "text/plain" : "application/json");
         return result as IOResult<K>;
       }
 
