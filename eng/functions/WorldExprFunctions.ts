@@ -10,7 +10,7 @@ import {
   getEntityPov,
   getEntitySnapshot,
   isEntityVisibleTo,
-  syncEntityState,
+  updateEntityStats,
 } from "./WorldFunctions";
 
 export function buildWorldExprFunctions(getCtx: () => StoryEventContext): Record<string, ExprEvalFunc> {
@@ -29,14 +29,9 @@ export function buildWorldExprFunctions(getCtx: () => StoryEventContext): Record
     const eid = castToString(id);
     const ekey = castToString(key);
     if (session.entities[eid]) {
-      const prev = Object.prototype.hasOwnProperty.call(session.entities[eid].stats, "location")
-        ? session.entities[eid].stats.location &&
-          typeof session.entities[eid].stats.location === "object"
-          ? { ...(session.entities[eid].stats.location as Record<string, SerialValue>) }
-          : session.entities[eid].stats.location
-        : null;
-      safeSet(session.entities[eid].stats as Record<string, SerialValue>, ekey, value);
-      syncEntityState(getCtx(), eid, prev);
+      const next = { ...session.entities[eid].stats } as Record<string, SerialValue>;
+      safeSet(next, ekey, value);
+      updateEntityStats(getCtx(), eid, next);
       return value;
     }
     return 0;

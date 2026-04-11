@@ -19,8 +19,9 @@ type EntityLocation = {
   rel: string;
 };
 
-const RESERVED_WORLD_KEYS = new Set(["kind", "public", "private", "location"]);
-const PATCHABLE_ROOT_KEYS = new Set(["kind", "public", "private", "location"]);
+const RESERVED_WORLD_KEYS = new Set(["kind", "public", "private", "location", "space", "render"]);
+const PATCHABLE_ROOT_KEYS = new Set(["kind", "public", "private", "location", "space", "render"]);
+const SHALLOW_MERGED_WORLD_KEYS = new Set(["public", "private", "location", "space", "render"]);
 const POV_EVENT_TYPES = new Set<string>([StoryEventType.$message, StoryEventType.$entity]);
 const MAX_LOCATION_DEPTH = 100;
 
@@ -158,15 +159,7 @@ export function mergeEntityStats(
       continue;
     }
 
-    if ((key === "public" || key === "private") && isRecord(value) && isRecord(next[key])) {
-      next[key] = {
-        ...(next[key] as Record<string, SerialValue>),
-        ...(value as Record<string, SerialValue>),
-      };
-      continue;
-    }
-
-    if (key === "location" && isRecord(value) && isRecord(next[key])) {
+    if (SHALLOW_MERGED_WORLD_KEYS.has(key) && isRecord(value) && isRecord(next[key])) {
       next[key] = {
         ...(next[key] as Record<string, SerialValue>),
         ...(value as Record<string, SerialValue>),
@@ -178,6 +171,24 @@ export function mergeEntityStats(
   }
 
   return next;
+}
+
+export function updateEntityStats(
+  ctx: StoryEventContext,
+  name: string,
+  incoming: Record<string, SerialValue>,
+): Record<string, SerialValue> | null {
+  const item = ctx.session.entities[name];
+  if (!item) {
+    return null;
+  }
+
+  const prev = cloneLocationValue(
+    Object.prototype.hasOwnProperty.call(item.stats, "location") ? item.stats.location : null,
+  );
+  item.stats = mergeEntityStats(item.stats, incoming);
+  syncEntityState(ctx, name, prev);
+  return item.stats;
 }
 
 export function applyWorldPatches(ctx: StoryEventContext, name: SerialValue, patches: SerialValue): SerialValue {
@@ -280,6 +291,8 @@ function buildPovEntity(session: StorySession, observer: string, target: string)
 
   const publicData = isRecord(item.stats.public) ? (item.stats.public as Record<string, SerialValue>) : {};
   const privateData = isRecord(item.stats.private) ? (item.stats.private as Record<string, SerialValue>) : {};
+  const spaceData = isRecord(item.stats.space) ? { ...(item.stats.space as Record<string, SerialValue>) } : null;
+  const renderData = isRecord(item.stats.render) ? { ...(item.stats.render as Record<string, SerialValue>) } : null;
   const base = {
     name: target,
     kind: castToString(item.stats.kind) || "person",
@@ -290,6 +303,12 @@ function buildPovEntity(session: StorySession, observer: string, target: string)
 
   if (observer === target) {
     base.private = { ...privateData };
+  }
+  if (spaceData) {
+    base.space = spaceData;
+  }
+  if (renderData) {
+    base.render = renderData;
   }
 
   for (const key in item.stats) {

@@ -3,7 +3,7 @@ import { castToString, isRecord, toStringArray } from "../../lib/EvalCasting";
 import { executeKids, gatherPromptAndSchemaForLLM, normalizeModelList, readBody, renderHandlebarsAndDDV } from "../Execution";
 import { buildCuePromptInstructions } from "../functions/CuePromptUtils";
 import { parseEntityRecordBody } from "./EntityDirective";
-import { mergeEntityStats, syncEntityState } from "../functions/WorldFunctions";
+import { updateEntityStats } from "../functions/WorldFunctions";
 import {
   ACT_TYPE,
   cloneNode,
@@ -165,13 +165,7 @@ export const STATE_directive: StoryDirectiveFuncDef = {
       stats[key] = pms.trailers[key];
     }
 
-    const prev =
-      Object.prototype.hasOwnProperty.call(entity.stats, "location") && entity.stats.location && typeof entity.stats.location === "object"
-        ? { ...(entity.stats.location as Record<string, SerialValue>) }
-        : entity.stats.location;
-    entity.stats = mergeEntityStats(entity.stats, stats);
-    syncEntityState(ctx, actor, prev);
-    return [entity.stats];
+    return [updateEntityStats(ctx, actor, stats) ?? entity.stats];
   },
 };
 
@@ -360,12 +354,7 @@ function applyCueResult(ctx: StoryEventContext, actor: string, value: unknown) {
 
   const nextState = isRecord(value.state) ? (value.state as Record<string, SerialValue>) : null;
   if (nextState) {
-    const prev =
-      Object.prototype.hasOwnProperty.call(entity.stats, "location") && entity.stats.location && typeof entity.stats.location === "object"
-        ? { ...(entity.stats.location as Record<string, SerialValue>) }
-        : entity.stats.location;
-    entity.stats = mergeEntityStats(entity.stats, nextState);
-    syncEntityState(ctx, actor, prev);
+    updateEntityStats(ctx, actor, nextState);
   }
 
   const actions = Array.isArray(value.actions) ? value.actions : [];

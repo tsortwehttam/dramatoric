@@ -57,6 +57,46 @@ async function test() {
   expectHas(result.entities.ALICE.stats.private, { goal: "get home" });
   expectHas(result.entities.ALICE.stats.location, { place: "JURY_ROOM", rel: "in" });
 
+  result = await execStoryTest(
+    dedent`
+      PERSON: ALICE DO
+        public:
+          mood: guarded
+        persona: You are Alice.
+      END
+
+      PLACE: JURY_ROOM DO
+        public:
+          lighting: harsh
+      END
+
+      THING: FILE DO
+        public:
+          status: sealed
+      END
+    `,
+    {},
+    MOCK
+  );
+  expect(result.entities.ALICE.stats.kind, "person");
+  expect(result.entities.JURY_ROOM.stats.kind, "place");
+  expect(result.entities.FILE.stats.kind, "thing");
+  expectHas(result.entities.ALICE.stats.public, { mood: "guarded" });
+  expectHas(result.entities.JURY_ROOM.stats.public, { lighting: "harsh" });
+  expectHas(result.entities.FILE.stats.public, { status: "sealed" });
+
+  result = await execStoryTest(
+    dedent`
+      PERSON: ALICE DO
+        kind: thing
+        persona: You are Alice.
+      END
+    `,
+    {},
+    MOCK
+  );
+  expect(result.entities.ALICE.stats.kind, "thing");
+
   // ENTITY with inline stats via params
   result = await execStoryTest(
     dedent`

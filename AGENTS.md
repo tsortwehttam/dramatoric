@@ -4,6 +4,10 @@ See @README.md
 
 ## General
 
+- Dramatoric should read idiomatically as something close to a screenplay with some declarative world/state sections and logic around it
+- If a DSL example or cartridge starts looking too "code"-y, treat that as a design signal that the engine may need a better abstraction, directive, or bit of sugar rather than just accepting the awkwardness
+- Prefer improving the language surface over pushing authors toward engine-facing primitives when the current syntax stops feeling like authored drama
+
 - Write simple, minimal, modular code that is strongly typed and:
   - DRY: If you repeat code in multiple places, extract it into a reusable function.
   - YAGNI: But make abstractions only when you actually need it in more than one place.

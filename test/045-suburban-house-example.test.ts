@@ -1,6 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
-import { execStoryTestWithLlm, loadCartridge } from "./TestEngineUtils";
+import { execStoryTestWithMockLlm, loadCartridge, MockLlmFixture } from "./TestEngineUtils";
 import { expect } from "./TestUtils";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -8,16 +8,19 @@ const EXAMPLE_DIR = path.resolve(DIR, "..", "fic", "suburban-house");
 
 async function test() {
   const cartridge = loadCartridge(EXAMPLE_DIR);
-  const result = await execStoryTestWithLlm(cartridge, {}, (instructions) => {
-    expect(instructions[0]?.role, "system");
-    expect(instructions[1]?.role, "user");
-    const text = instructions.map((item) => item.content).join("\n");
-    if (text.includes("Respond in character as FRANK WHITMAN.")) {
-      expect(text.includes("Respond in character as FRANK WHITMAN."), true);
-      expect(text.includes("Keep Frank brittle, witty, and faintly self-destructive."), true);
-      expect(text.includes("Eleanor is in view, so Frank lets the line land with performative ease."), true);
-      expect(text.includes("Julia is out of sight, which makes Frank bolder and lonelier."), true);
-      return {
+  const fixtures: MockLlmFixture[] = [
+    {
+      name: "frank cue",
+      systemIncludes: [
+        "Respond in character as FRANK WHITMAN.",
+        "Keep Frank brittle, witty, and faintly self-destructive.",
+      ],
+      userIncludes: [
+        "Eleanor is in view, so Frank lets the line land with performative ease.",
+        "Julia is out of sight, which makes Frank bolder and lonelier.",
+      ],
+      schemaIncludes: [],
+      reply: {
         state: {},
         actions: [
           {
@@ -26,22 +29,31 @@ async function test() {
             body: "Another highball and this evening may yet survive itself.",
           },
         ],
-      };
-    }
-    expect(text.includes("Respond in character as ELEANOR WHITMAN."), true);
-    expect(text.includes("Keep Eleanor precise, wounded, and controlled."), true);
-    expect(text.includes("Julia is in front of her, and Eleanor wants control more than comfort."), true);
-    return {
-      state: {},
-      actions: [
-        {
-          type: "say",
-          to: ["JULIA WHITMAN"],
-          body: "If you are going to leave, at least leave the screen door open.",
-        },
+      },
+    },
+    {
+      name: "eleanor cue",
+      systemIncludes: [
+        "Respond in character as ELEANOR WHITMAN.",
+        "Keep Eleanor precise, wounded, and controlled.",
       ],
-    };
-  });
+      userIncludes: [
+        "Julia is in front of her, and Eleanor wants control more than comfort.",
+      ],
+      schemaIncludes: [],
+      reply: {
+        state: {},
+        actions: [
+          {
+            type: "say",
+            to: ["JULIA WHITMAN"],
+            body: "If you are going to leave, at least leave the screen door open.",
+          },
+        ],
+      },
+    },
+  ];
+  const result = await execStoryTestWithMockLlm(cartridge, {}, fixtures);
 
   expect(!!result.history.find((event) => event.value === "The Whitman House"), true);
   expect(!!result.history.find((event) => event.value === "Frank leaves the den carrying his fresh drink like a prop."), true);

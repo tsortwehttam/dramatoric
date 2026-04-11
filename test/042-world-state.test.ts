@@ -221,6 +221,69 @@ async function test() {
   expect(!!move, true);
   expect(move?.origin, "JURY ROOM");
   expect(move?.destination, "HALLWAY");
+
+  result = await execStoryTest(
+    dedent`
+      PERSON: ALICE DO
+        location:
+          place: JURY ROOM
+          rel: in
+        space:
+          pos: [2, 3, 0]
+          angle: 90
+        render:
+          sprite: alice_idle.png
+          light: 0.25
+      END
+
+      WITH: ALICE DO
+        STATE: DO
+          space:
+            angle: 180
+            scale: [1.1, 1.1, 1.1]
+          render:
+            sprite: alice_tense.png
+        END
+      END
+
+      SET: alice {{entity("ALICE")}}
+      SET: view {{pov("ALICE")}}
+    `,
+    {},
+    MOCK,
+  );
+
+  expectHas(result.entities.ALICE.stats.space, {
+    pos: [2, 3, 0],
+    angle: 180,
+    scale: [1.1, 1.1, 1.1],
+  });
+  expectHas(result.entities.ALICE.stats.render, {
+    sprite: "alice_tense.png",
+    light: 0.25,
+  });
+  expectHas(result.state.alice as Record<string, unknown>, {
+    space: {
+      pos: [2, 3, 0],
+      angle: 180,
+      scale: [1.1, 1.1, 1.1],
+    },
+    render: {
+      sprite: "alice_tense.png",
+      light: 0.25,
+    },
+  });
+  expectHas((result.state.view as Record<string, unknown>).you as Record<string, unknown>, {
+    space: {
+      pos: [2, 3, 0],
+      angle: 180,
+      scale: [1.1, 1.1, 1.1],
+    },
+    render: {
+      sprite: "alice_tense.png",
+      light: 0.25,
+    },
+  });
 }
 
 test();

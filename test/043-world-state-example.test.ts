@@ -1,6 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
-import { execStoryTestWithLlm, loadCartridge } from "./TestEngineUtils";
+import { execStoryTestWithMockLlm, loadCartridge, MockLlmFixture } from "./TestEngineUtils";
 import { expect } from "./TestUtils";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -8,34 +8,40 @@ const EXAMPLE_DIR = path.resolve(DIR, "..", "fic", "world-state");
 
 async function test() {
   const cartridge = loadCartridge(EXAMPLE_DIR);
-  const result = await execStoryTestWithLlm(cartridge, {}, (instructions) => {
-    expect(instructions[0]?.role, "system");
-    expect(instructions[1]?.role, "user");
-    const text = instructions.map((item) => item.content).join("\n");
-    expect(text.includes("Respond in character as ALICE."), true);
-    expect(text.includes('"actions" is an array of in-world actions'), true);
-    expect(text.includes("Keep Alice concise and conciliatory."), true);
-    expect(text.includes("Bob is no longer in view, which gives Alice a little room to soften."), true);
-    expect(text.includes("Alice is trying to lower the temperature rather than win the argument."), true);
-    expect(text.includes("you:"), true);
-    expect(text.includes("people:"), true);
-    expect(text.includes("events:"), true);
-    return {
-      state: {},
-      actions: [
-        {
-          type: "say",
-          to: ["BOB"],
-          body: "Let's slow down.",
-        },
-        {
-          type: "deliberate",
-          to: ["BOB"],
-          body: "Alice asks for a slower review.",
-        },
+  const fixtures: MockLlmFixture[] = [
+    {
+      name: "alice cue",
+      systemIncludes: [
+        "Respond in character as ALICE.",
+        '"actions" is an array of in-world actions',
+        "Keep Alice concise and conciliatory.",
       ],
-    };
-  });
+      userIncludes: [
+        "Bob is no longer in view, which gives Alice a little room to soften.",
+        "Alice is trying to lower the temperature rather than win the argument.",
+        "you:",
+        "people:",
+        "events:",
+      ],
+      schemaIncludes: [],
+      reply: {
+        state: {},
+        actions: [
+          {
+            type: "say",
+            to: ["BOB"],
+            body: "Let's slow down.",
+          },
+          {
+            type: "deliberate",
+            to: ["BOB"],
+            body: "Alice asks for a slower review.",
+          },
+        ],
+      },
+    },
+  ];
+  const result = await execStoryTestWithMockLlm(cartridge, {}, fixtures);
 
   expect(!!result.history.find((event) => event.value === "World State Example"), true);
   expect(!!result.history.find((event) => event.value === "Alice departs JURY ROOM."), true);

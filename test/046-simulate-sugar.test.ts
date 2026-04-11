@@ -1,9 +1,40 @@
 import dedent from "dedent";
-import { execStoryTest, execStoryTestWithLlm } from "./TestEngineUtils";
+import { execStoryTest, execStoryTestWithMockLlm, MockLlmFixture } from "./TestEngineUtils";
 import { expect } from "./TestUtils";
 
 async function test() {
-  let result = await execStoryTestWithLlm(
+  const fixtures: MockLlmFixture[] = [
+    {
+      name: "alice simulate cue",
+      systemIncludes: ["Respond in character as ALICE.", "Keep Alice calm."],
+      userIncludes: [
+        "Alice should say exactly: Let's slow down.",
+        "She should also take a deliberate action toward BOB described exactly as: Alice asks for a slower review.",
+      ],
+      schemaIncludes: [],
+      reply: {
+        state: {
+          location: {
+            place: "ROOM",
+            rel: "in",
+          },
+        },
+        actions: [
+          {
+            type: "say",
+            to: ["BOB"],
+            body: "Let's slow down.",
+          },
+          {
+            type: "deliberate",
+            to: ["BOB"],
+            body: "Alice asks for a slower review.",
+          },
+        ],
+      },
+    },
+  ];
+  let result = await execStoryTestWithMockLlm(
     dedent`
       ENTITY: ROOM DO
         kind: place
@@ -47,30 +78,7 @@ async function test() {
       END
     `,
     {},
-    (instructions) => {
-      const text = instructions.map((item) => item.content).join("\n");
-      expect(text.includes("Keep Alice calm."), true);
-      return {
-        state: {
-          location: {
-            place: "ROOM",
-            rel: "in",
-          },
-        },
-        actions: [
-          {
-            type: "say",
-            to: ["BOB"],
-            body: "Let's slow down.",
-          },
-          {
-            type: "deliberate",
-            to: ["BOB"],
-            body: "Alice asks for a slower review.",
-          },
-        ],
-      };
-    },
+    fixtures,
   );
 
   expect(result.state.turns, 1);

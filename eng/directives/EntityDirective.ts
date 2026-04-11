@@ -2,8 +2,8 @@ import { SerialValue } from "../../lib/CoreTypings";
 import { safeJsonOrYamlParse } from "../../lib/JSONAndYAMLHelpers";
 import { isBlank } from "../../lib/TextHelpers";
 import { readBody } from "../Execution";
-import { mergeEntityStats, syncEntityState } from "../functions/WorldFunctions";
-import { ENTITY_TYPE, readNamedClause, StoryDirectiveFuncDef, StoryEventContext } from "../Helpers";
+import { updateEntityStats } from "../functions/WorldFunctions";
+import { ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE, readNamedClause, StoryDirectiveFuncDef, StoryEventContext } from "../Helpers";
 
 /**
  * ## ENTITY
@@ -73,7 +73,7 @@ import { ENTITY_TYPE, readNamedClause, StoryDirectiveFuncDef, StoryEventContext 
  * - If the body does not parse as structured data, it is treated as raw persona text.
  * - Inline parameters (after semicolons) are merged into stats.
  * - Redeclaring the same entity merges new stats and replaces the persona.
- * - Reserved world-state keys `public`, `private`, and `location` merge shallowly.
+ * - Reserved world-state keys `public`, `private`, `location`, `space`, and `render` merge shallowly.
  * - Changing `location.place` on an existing entity emits `location.move`
  *   plus derived `location.exit` and `location.enter` events.
  * - When a speaker name matches a registered entity, the entity's persona is
@@ -81,7 +81,7 @@ import { ENTITY_TYPE, readNamedClause, StoryDirectiveFuncDef, StoryEventContext 
  * - Access entity stats with `stat("ENTITY_NAME", "statKey")`.
  */
 export const ENTITY_directive: StoryDirectiveFuncDef = {
-  type: [ENTITY_TYPE],
+  type: [ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE],
   func: async (node, ctx, pms) => {
     const name = pms.clauses[0]?.trim() ?? readNamedClause(pms);
     if (!name) {
@@ -95,32 +95,45 @@ export const ENTITY_directive: StoryDirectiveFuncDef = {
     for (const key in pms.trailers) {
       stats[key] = pms.trailers[key];
     }
+    const inferred = readInferredKind(node.type);
+    if (inferred && !stats.kind) {
+      stats.kind = inferred;
+    }
 
     const existing = ctx.session.entities[name];
-    const prev = existing
-      ? cloneLocationValue(Object.prototype.hasOwnProperty.call(existing.stats, "location") ? existing.stats.location : null)
-      : undefined;
     if (existing) {
-      existing.stats = mergeEntityStats(existing.stats, stats);
-      existing.modus = node;
       if (persona) {
         existing.persona = persona;
       }
+      existing.modus = node;
+      updateEntityStats(ctx, name, stats);
     } else {
       ctx.session.entities[name] = {
         modus: node,
         persona,
         stats,
       };
+      updateEntityStats(ctx, name, {});
     }
-
-    syncEntityState(ctx, name, prev);
     return [ctx.session.entities[name].stats];
   },
 };
 
+function readInferredKind(type: string): string {
+  if (type === PERSON_TYPE) {
+    return "person";
+  }
+  if (type === PLACE_TYPE) {
+    return "place";
+  }
+  if (type === THING_TYPE) {
+    return "thing";
+  }
+  return "";
+}
+
 const PERSONA_KEYS = new Set(["persona", "modus", "description", "character", "bio"]);
-const NESTED_SECTION_KEYS = new Set(["public", "private", "location"]);
+const NESTED_SECTION_KEYS = new Set(["public", "private", "location", "space", "render"]);
 
 function parseEntityBody(body: string): {
   stats: Record<string, SerialValue>;
@@ -219,15 +232,7 @@ function parseFlatStructuredLines(body: string): Record<string, SerialValue> | n
   return sawStructured ? out : null;
 }
 
-const RESERVED_WORLD_ROOT_KEYS = new Set(["kind", "public", "private", "location"]);
-
-function cloneLocationValue(value: SerialValue): SerialValue {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-
-  return { ...(value as Record<string, SerialValue>) };
-}
+const RESERVED_WORLD_ROOT_KEYS = new Set(["kind", "public", "private", "location", "space", "render"]);
 
 export function resolveEntityPersona(speaker: string, ctx: StoryEventContext): string {
   const entity = ctx.session.entities[speaker];

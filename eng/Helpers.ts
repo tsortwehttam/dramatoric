@@ -456,6 +456,9 @@ export const LOOP_TYPE = "LOOP";
 export const GOTO_TYPE = "GOTO";
 export const DONE_TYPE = "DONE";
 export const ENTITY_TYPE = "ENTITY";
+export const PERSON_TYPE = "PERSON";
+export const PLACE_TYPE = "PLACE";
+export const THING_TYPE = "THING";
 export const SIMULATE_TYPE = "SIMULATE";
 export const CUE_TYPE = "CUE";
 export const WITH_TYPE = "WITH";
@@ -512,6 +515,9 @@ export const DIRECTIVE_TYPES = [
   LOOP_TYPE,
   DONE_TYPE,
   ENTITY_TYPE,
+  PERSON_TYPE,
+  PLACE_TYPE,
+  THING_TYPE,
   SIMULATE_TYPE,
   CUE_TYPE,
   WITH_TYPE,
