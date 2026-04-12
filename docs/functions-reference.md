@@ -263,7 +263,7 @@ The reference below shows each method with a short example and a one-line descri
 | Example | Returns |
 | --- | --- |
 | `coLocated("ALICE", "BOB") //=> true` | True if the entities overlap in world location. |
-| `entity("ALICE") //=> {"name":"ALICE","persona":"...","kind":"person"}` | Entity snapshot with name, persona, and stats, or null if missing. |
+| `entity("ALICE") //=> {"name":"ALICE","kind":"person"}` | Entity snapshot with name and stats, or null if missing. |
 | `loc("ALICE") //=> {"place":"JURY ROOM","rel":"in"}` | Location object, or null if the entity has no location. |
 | `pov("ALICE") //=> {"you":{...},"people":[...],"things":[...],"places":[...],"events":[...]}` | Subjective POV object with visible entities and events. |
 | `visibleTo("ALICE", "BOB") //=> true` | True if target is visible to observer. |

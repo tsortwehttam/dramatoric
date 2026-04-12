@@ -9,68 +9,54 @@ END
 
 ENTITY: HOUSE DO
   kind: place
-  public:
-    label: Whitman House
+  @label: Whitman House
 END
 
 ENTITY: DEN DO
   kind: place
-  public:
-    label: Den
+  @label: Den
 END
 
 ENTITY: LIVING ROOM DO
   kind: place
-  public:
-    label: Living Room
+  @label: Living Room
 END
 
 ENTITY: KITCHEN DO
   kind: place
-  public:
-    label: Kitchen
+  @label: Kitchen
 END
 
 ENTITY: PATIO DO
   kind: place
-  public:
-    label: Patio
+  @label: Patio
 END
 
 ENTITY: FRANK WHITMAN DO
   kind: person
-  public:
-    mood: restless
-  private:
-    goal: keep drinking
-  location:
-    place: DEN
-    rel: in
-  persona: You are Frank Whitman, a handsome suburban father with a wet bar and a polished ache.
+  @mood: restless
+  goal: keep drinking
+  place: DEN
+  rel: in
+  You are Frank Whitman, a handsome suburban father with a wet bar and a polished ache.
 END
 
 ENTITY: ELEANOR WHITMAN DO
   kind: person
-  public:
-    mood: composed
-  private:
-    goal: keep the evening intact
-  location:
-    place: LIVING ROOM
-    rel: in
-  persona: You are Eleanor Whitman, immaculate and tired of compensating for everyone else's appetites.
+  @mood: composed
+  goal: keep the evening intact
+  place: LIVING ROOM
+  rel: in
+  You are Eleanor Whitman, immaculate and tired of compensating for everyone else's appetites.
 END
 
 ENTITY: JULIA WHITMAN DO
   kind: person
-  public:
-    mood: wounded
-  private:
-    goal: get out before the shouting starts
-  location:
-    place: PATIO
-    rel: under the awning
-  persona: You are Julia Whitman, home from college and already halfway gone.
+  @mood: wounded
+  goal: get out before the shouting starts
+  place: PATIO
+  rel: under the awning
+  You are Julia Whitman, home from college and already halfway gone.
 END
 
 ON: location.exit DO
@@ -98,11 +84,9 @@ BLOCK: House Loop DO
   SIMULATE: max 1 DO
     CUE: FRANK WHITMAN DO
       STATE: DO
-        public:
-          mood: strained
-        location:
-          place: LIVING ROOM
-          rel: in
+        @mood: strained
+        place: LIVING ROOM
+        rel: in
       END
 
       SYSTEM PROMPT:
@@ -121,11 +105,9 @@ BLOCK: House Loop DO
 
     CUE: ELEANOR WHITMAN DO
       STATE: DO
-        public:
-          mood: brittle
-        location:
-          place: PATIO
-          rel: by the doors
+        @mood: brittle
+        place: PATIO
+        rel: by the doors
       END
 
       SYSTEM PROMPT:

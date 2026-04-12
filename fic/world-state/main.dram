@@ -25,11 +25,9 @@ BLOCK: Deliberation Loop DO
   SIMULATE: until simStop == "player_input"; max 1 DO
     CUE: ALICE DO
       STATE: DO
-        public:
-          mood: open
-        location:
-          place: HALLWAY
-          rel: in
+        @mood: open
+        place: HALLWAY
+        rel: in
       END
 
       SYSTEM PROMPT:
@@ -54,38 +52,30 @@ END
 SCENE: Deliberation DO
   ENTITY: JURY ROOM DO
     kind: place
-    public:
-      label: Jury Room
+    @label: Jury Room
   END
 
   ENTITY: HALLWAY DO
     kind: place
-    public:
-      label: Hallway
+    @label: Hallway
   END
 
   ENTITY: ALICE DO
     kind: person
-    public:
-      mood: guarded
-    private:
-      goal: get home
-    location:
-      place: JURY ROOM
-      rel: in
-    persona: You are Alice.
+    @mood: guarded
+    goal: get home
+    place: JURY ROOM
+    rel: in
+    You are Alice.
   END
 
   ENTITY: BOB DO
     kind: person
-    public:
-      mood: tense
-    private:
-      goal: convict
-    location:
-      place: JURY ROOM
-      rel: in
-    persona: You are Bob.
+    @mood: tense
+    goal: convict
+    place: JURY ROOM
+    rel: in
+    You are Bob.
   END
 
   SET: simTurns 0

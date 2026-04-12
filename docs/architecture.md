@@ -204,19 +204,23 @@ Lookup checks stack first (top-down), then session state.
 
 ### Entities as World State
 
-`ENTITY:` is also the engine's world-state primitive. It stores a stable persona plus arbitrary stats, and now has a small set of reserved keys that support spatial-social simulation without introducing a second DSL:
+`ENTITY:` is also the engine's world-state primitive. It stores authored entries plus derived stats, and now has a small set of reserved keys that support spatial-social simulation without introducing a second DSL:
 
 - `kind`: broad category such as `person`, `place`, or `thing`
 - `public`: visible shared state
 - `private`: observer-local state visible only to self through `pov()`
 - `location`: containment/location data such as `{ place: "JURY ROOM", rel: "in" }`
+- `space`: optional spatial/layout state that may matter to simulation and clients
+- `render`: optional renderer-facing state intended for consumers, not character prompts
+
+`location.rel` is intended as the entity's relation to its containing `place`, not a free-form relation to props or sub-objects within that place. Use `space` for intra-place placement such as where someone is standing inside a room.
 
 This keeps narrative flow and world topology separate:
 
 - `SCENE` is still a narrative jump target for `GOTO`
 - places are ordinary entities with `kind: place`
 
-The runtime derives subjective context from shared entity state with helper functions like `entity()`, `loc()`, `coLocated()`, `visibleTo()`, and `pov()`. Structured LLM outputs can then be applied back into entity state with `applyPatches()` and converted into ordinary story events with `emitActions()`.
+The runtime derives subjective context from shared entity state with helper functions like `entity()`, `loc()`, `coLocated()`, `visibleTo()`, and `pov()`. `entity()` returns the full world snapshot, while `pov()` is intentionally prompt-facing and excludes renderer-only `render` data. Structured LLM outputs can then revise mutable authored entries by id and emit ordinary story actions.
 
 The intended authoring pattern is function-first: authors enter a simulation loop by using normal Dramatoric flow (`RUN`, `LOOP`, `IF`, `ON`, `LLM`) rather than by switching into a separate engine mode. If higher-level sugar is added later, it should desugar cleanly into that same block-and-event model.
 
@@ -302,7 +306,7 @@ END
 
 The first parameter keyword controls behavior: `GENERATE` for open-ended generation, `PARSE` for extracting structured data, `CLASSIFY` for scoring against categories, or `NORMALIZE` for constraining to specific values.
 
-### Persona Blocks
+### Dialogue Prompt Blocks
 
 Dynamic dialogue can be generated using "LLM blocks" with angle-bracket syntax, `<<...>>`:
 
@@ -314,7 +318,7 @@ Respond curtly to the player's last remark.
 >>
 ```
 
-The persona content becomes the system prompt; the LLM generates the spoken line in character. Conversation history is automatically included as context.
+That authored context becomes part of the system prompt; the LLM generates the spoken line in character. Conversation history is automatically included as context.
 
 ## ServiceProvider Interface
 

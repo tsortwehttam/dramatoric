@@ -9,9 +9,12 @@ import { mutativeMerge } from "../lib/ValueHelpers";
 import { createLoadedRunner } from "./Evaluator";
 import { buildCompileWorldExprFunctions } from "./functions/WorldExprFunctions";
 import {
+  ANY_EVENT,
   dumpNode,
   EVENT_KEY,
   EVENT_HANDLERS,
+  HEAR_TYPE,
+  IF_TYPE,
   INPUT_KEY,
   INPUT_TYPE,
   isMain,
@@ -21,6 +24,7 @@ import {
   PARAMS_KEY,
   PRELUDE_TYPE,
   ROOT_TYPE,
+  REACT_TYPE,
   STATE_ARRAY_KEY,
   STATE_ELEMENT_KEY,
   STATE_INDEX_KEY,
@@ -325,6 +329,12 @@ export function compileCartridge(cartridge: StoryCartridge, errors: ErrorBase[] 
       node.type = ON_TYPE;
       node.args = `${INPUT_KEY};${node.args}`;
     }
+    if (node.type === HEAR_TYPE) {
+      rewriteHearNode(node);
+    }
+    if (node.type === REACT_TYPE) {
+      rewriteReactNode(node);
+    }
     if (!EVENT_HANDLERS.includes(node.type)) {
       wrap.kids.push(node);
     } else {
@@ -368,6 +378,47 @@ export function compileCartridge(cartridge: StoryCartridge, errors: ErrorBase[] 
     console.info("[compiler] errors", errors);
   }
   return { root, meta, errs: errors };
+}
+
+function rewriteHearNode(node: WellNode) {
+  const names = node.args
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  node.type = ON_TYPE;
+  node.args = INPUT_KEY;
+  if (names.length === 0) {
+    return;
+  }
+
+  const checks = names.map((name) => `arrayContains($event.to, ${JSON.stringify(name)})`);
+  const expr = [`arrayLength($event.to) == 0`, ...checks].join(" || ");
+  node.kids = [
+    {
+      type: IF_TYPE,
+      args: expr,
+      kids: node.kids,
+      vars: [],
+      eave: "",
+    },
+  ];
+}
+
+function rewriteReactNode(node: WellNode) {
+  const args = node.args;
+  const kids = node.kids;
+  node.type = ON_TYPE;
+  node.args = ANY_EVENT;
+  node.kids = [
+    {
+      type: REACT_TYPE,
+      args,
+      kids,
+      vars: [],
+      eave: "",
+    },
+  ];
 }
 
 const SUSPICIOUS_STANZA_LINE =

@@ -416,7 +416,7 @@ export async function generateDialogue(
   ctx: StoryEventContext,
   speaker: string,
   segments: EmbeddedSegment[],
-  persona: string,
+  prompt: string,
   history: StoryEvent[],
   models: string[] = ["WRITING"],
 ): Promise<string> {
@@ -434,15 +434,15 @@ export async function generateDialogue(
   const screenplay = formatScreenplay(history);
 
   if (!hasText) {
-    const prompt = prompts.map((s) => s.value).join("\n");
+    const slotPrompt = prompts.map((s) => s.value).join("\n");
     const segModels = resolveModels(prompts[0]);
-    const fullPersona = persona ? `${persona}\n\n${prompt}` : prompt;
+    const fullPrompt = prompt ? `${prompt}\n\n${slotPrompt}` : slotPrompt;
     const instructions = [
       {
         role: "system" as const,
         content: [
-          `You are writing dialogue for ${speaker}. Here is their persona:`,
-          fullPersona,
+          `You are writing dialogue for ${speaker}. Here is their authored context:`,
+          fullPrompt,
           "",
           "Write a single spoken line. No stage directions, no quotation marks, no formatting.",
           "Keep it natural and concise.",
@@ -471,7 +471,7 @@ export async function generateDialogue(
       .map((s) => s.value)
       .join(" ");
     const ctx_lines: string[] = [];
-    if (persona) ctx_lines.push(persona, "");
+    if (prompt) ctx_lines.push(prompt, "");
     ctx_lines.push(`You are writing dialogue for ${speaker}.`);
     if (before) ctx_lines.push(`The preceding dialogue is: "${before}"`);
     if (after) ctx_lines.push(`The following dialogue is: "${after}"`);
@@ -539,10 +539,10 @@ export function gatherContextInfo(
   const event = simplifyEvent(ctx.event);
   const input = event.type === StoryEventType.$input_final ? event : null;
   const entities = Object.keys(ctx.session.entities).map((name) => {
-    const { stats, persona } = ctx.session.entities[name];
+    const { stats, entries } = ctx.session.entities[name];
     return {
       name,
-      persona,
+      entries,
       stats,
     };
   });

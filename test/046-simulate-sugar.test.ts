@@ -13,12 +13,7 @@ async function test() {
       ],
       schemaIncludes: [],
       reply: {
-        state: {
-          location: {
-            place: "ROOM",
-            rel: "in",
-          },
-        },
+        edits: [],
         actions: [
           {
             type: "say",
@@ -42,16 +37,14 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        location:
-          place: ROOM
-          rel: in
+        place: ROOM
+        rel: in
       END
 
       ENTITY: BOB DO
         kind: person
-        location:
-          place: ROOM
-          rel: in
+        place: ROOM
+        rel: in
       END
 
       SET: stop null
@@ -68,8 +61,7 @@ async function test() {
 
         WITH: ALICE DO
           STATE: DO
-            public:
-              mood: settled
+            @mood: settled
           END
         END
 

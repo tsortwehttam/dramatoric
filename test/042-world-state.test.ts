@@ -16,8 +16,7 @@ async function test() {
     dedent`
       ENTITY: JURY ROOM DO
         kind: place
-        public:
-          label: Jury Room
+        @label: Jury Room
       END
 
       ENTITY: HALLWAY DO
@@ -26,47 +25,36 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        public:
-          mood: guarded
-        private:
-          goal: get home
-        location:
-          place: JURY ROOM
-          rel: in
-        persona: You are Alice.
+        @mood: guarded
+        goal: get home
+        place: JURY ROOM
+        rel: in
+        You are Alice.
       END
 
       ENTITY: BOB DO
         kind: person
-        public:
-          mood: tense
-        private:
-          goal: convict
-        location:
-          place: JURY ROOM
-          rel: in
-        persona: You are Bob.
+        @mood: tense
+        goal: convict
+        place: JURY ROOM
+        rel: in
+        You are Bob.
       END
 
       ENTITY: FILE DO
         kind: thing
-        public:
-          state: sealed
-        location:
-          place: JURY ROOM
-          rel: on table
+        @state: sealed
+        place: JURY ROOM
+        rel: on table
       END
 
       ENTITY: CAROL DO
         kind: person
-        public:
-          mood: distant
-        private:
-          goal: leave
-        location:
-          place: HALLWAY
-          rel: in
-        persona: You are Carol.
+        @mood: distant
+        goal: leave
+        place: HALLWAY
+        rel: in
+        You are Carol.
       END
 
       SET: _ {{emitActions("BOB", [{ type: "say", to: ["ALICE"], body: "We should keep talking." }])}}
@@ -89,7 +77,6 @@ async function test() {
     you: {
       name: "ALICE",
       kind: "person",
-      persona: "You are Alice.",
       public: { mood: "guarded" },
       private: { goal: "get home" },
       location: { place: "JURY ROOM", rel: "in" },
@@ -115,17 +102,14 @@ async function test() {
     dedent`
       ENTITY: ALICE DO
         kind: person
-        public:
-          mood: guarded
-        private:
-          goal: get home
-        location:
-          place: JURY ROOM
-          rel: in
-        persona: You are Alice.
+        @mood: guarded
+        goal: get home
+        place: JURY ROOM
+        rel: in
+        You are Alice.
       END
 
-      SET: count {{applyPatches("ALICE", [{ op: "set", path: "public.mood", value: "open" }, { op: "set", path: "private.goal", value: "stay" }, { op: "set", path: "location.rel", value: "at table" }, { op: "del", path: "private.goal" }, { op: "set", path: "persona", value: "ignored" }])}}
+      SET: count {{applyPatches("ALICE", [{ op: "set", path: "public.mood", value: "open" }, { op: "set", path: "private.goal", value: "stay" }, { op: "set", path: "location.rel", value: "at table" }, { op: "del", path: "private.goal" }, { op: "set", path: "prompt", value: "ignored" }])}}
 
       SET: mood {{stat("ALICE", "public.mood")}}
       SET: locn {{loc("ALICE")}}
@@ -142,20 +126,21 @@ async function test() {
     public: { mood: "open" },
     private: {},
   });
-  expect(result.entities.ALICE.persona, "You are Alice.");
-  const noMove = findEvent(result.history, "location.move");
-  expect(!!noMove, false);
+  expect(result.entities.ALICE.entries.filter((item) => item.path === "prompt[]").map((item) => item.value), ["You are Alice."]);
+  expect(result.entities.ALICE.entries.some((item) => item.path === "private.goal"), false);
+  const moveEvents = result.history.filter((event) => event.type === "location.move");
+  expect(moveEvents.length, 1);
 
   result = await execStoryTest(
     dedent`
       ENTITY: ALICE DO
         kind: person
-        persona: You are Alice.
+        You are Alice.
       END
 
       ENTITY: BOB DO
         kind: person
-        persona: You are Bob.
+        You are Bob.
       END
 
       SET: count {{emitActions("ALICE", [{ type: "say", to: ["BOB"], body: "I disagree." }, { type: "accuse", to: ["BOB"], body: "You are guessing." }])}}
@@ -191,16 +176,14 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        location:
-          place: JURY ROOM
-          rel: in
+        place: JURY ROOM
+        rel: in
       END
 
       WITH: ALICE DO
         STATE: DO
-          location:
-            place: HALLWAY
-            rel: in
+          place: HALLWAY
+          rel: in
         END
       END
     `,
@@ -208,9 +191,9 @@ async function test() {
     MOCK,
   );
 
-  const exit = findEvent(result.history, "location.exit");
-  const enter = findEvent(result.history, "location.enter");
-  const move = findEvent(result.history, "location.move");
+  const exit = [...result.history].reverse().find((event) => event.type === "location.exit" && event.from === "ALICE");
+  const enter = [...result.history].reverse().find((event) => event.type === "location.enter" && event.from === "ALICE");
+  const move = [...result.history].reverse().find((event) => event.type === "location.move" && event.from === "ALICE");
   expect(!!exit, true);
   expect(exit?.from, "ALICE");
   expect(exit?.origin, "JURY ROOM");
@@ -225,24 +208,19 @@ async function test() {
   result = await execStoryTest(
     dedent`
       PERSON: ALICE DO
-        location:
-          place: JURY ROOM
-          rel: in
-        space:
-          pos: [2, 3, 0]
-          angle: 90
-        render:
-          sprite: alice_idle.png
-          light: 0.25
+        place: JURY ROOM
+        rel: in
+        pos: [2, 3, 0]
+        angle: 90
+        sprite: alice_idle.png
+        light: 0.25
       END
 
       WITH: ALICE DO
         STATE: DO
-          space:
-            angle: 180
-            scale: [1.1, 1.1, 1.1]
-          render:
-            sprite: alice_tense.png
+          angle: 180
+          scale: [1.1, 1.1, 1.1]
+          sprite: alice_tense.png
         END
       END
 
@@ -279,11 +257,8 @@ async function test() {
       angle: 180,
       scale: [1.1, 1.1, 1.1],
     },
-    render: {
-      sprite: "alice_tense.png",
-      light: 0.25,
-    },
   });
+  expect("render" in ((result.state.view as Record<string, unknown>).you as Record<string, unknown>), false);
 }
 
 test();

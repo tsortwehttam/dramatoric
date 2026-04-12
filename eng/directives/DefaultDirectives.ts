@@ -16,7 +16,7 @@ import {
   TEXT_TYPE,
 } from "../Helpers";
 import { generateDialogue } from "../Processor";
-import { resolveEntityPersona } from "./EntityDirective";
+import { buildEntityDialoguePrompt } from "../functions/CuePromptUtils";
 
 /**
  * ## Reserved / Structural Stanzas
@@ -107,8 +107,8 @@ export const noop_directive: StoryDirectiveFuncDef = {
  * - Parentheses set emotional tone and are not spoken aloud.
  * - `<< >>` blocks are inline LLM generation slots. Authored text around them
  *   is preserved literally, and the LLM generates content to fill each slot.
- * - If the speaker is a registered entity, the entity persona is always layered
- *   in as base context for LLM generation, even when explicit `<< >>` blocks
+ * - If the speaker is a registered entity, the entity's authored context is
+ *   always layered in as base context for LLM generation, even when explicit `<< >>` blocks
  *   are present.
  */
 export const fallthru_directive: StoryDirectiveFuncDef = {
@@ -128,17 +128,17 @@ export const fallthru_directive: StoryDirectiveFuncDef = {
 
     let segments = extractEmbeddedSegments(body);
     const hasPrompt = segments.some((s) => s.kind === "prompt");
-    const persona = resolveEntityPersona(speaker, ctx);
+    const prompt = buildEntityDialoguePrompt(speaker, ctx);
 
-    // No <<>> and no entity persona → pure authored text
-    if (!hasPrompt && isBlank(persona)) {
+    // No <<>> and no entity context → pure authored text
+    if (!hasPrompt && isBlank(prompt)) {
       const text = cleanSpokenText(body);
       ctx.say(speaker, text, eventOpts);
       return [text];
     }
 
     // Entity with no <<>> → treat whole body as a single prompt slot
-    if (!hasPrompt && !isBlank(persona)) {
+    if (!hasPrompt && !isBlank(prompt)) {
       segments = [{ kind: "prompt", value: "Speak in character.", params: {} }];
     }
 
@@ -146,7 +146,7 @@ export const fallthru_directive: StoryDirectiveFuncDef = {
     const models = isBlank(model) ? ["WRITING"] : [model];
     const participants = [speaker, ...to];
     const history = filterConversationEvents(ctx.session.history, participants);
-    const text = await generateDialogue(ctx, speaker, segments, persona, history, models);
+    const text = await generateDialogue(ctx, speaker, segments, prompt, history, models);
     ctx.say(speaker, text, eventOpts);
     return [text];
   },

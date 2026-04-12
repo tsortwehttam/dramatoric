@@ -1,6 +1,7 @@
 import { SerialValue } from "../../lib/CoreTypings";
-import { castToString, isRecord, safeGet, safeSet, toStringArray } from "../../lib/EvalCasting";
-import { StoryEvent, StoryEventContext, StoryEventType, StorySession } from "../Helpers";
+import { castToString, isRecord, safeGet, toStringArray } from "../../lib/EvalCasting";
+import { StoryEntityEntry, StoryEvent, StoryEventContext, StoryEventType, StorySession } from "../Helpers";
+import { readEntityStatsFromEntries, removeEntityEntry, upsertEntityEntry } from "./EntityEntryHelpers";
 
 export type WorldPatch = {
   op: "set" | "del";
@@ -14,6 +15,14 @@ export type WorldAction = {
   body: string;
 };
 
+type EntityProjectionOpts = {
+  observer: string | null;
+  includePrivate: boolean;
+  includeSpace: boolean;
+  includeRender: boolean;
+  includeExtra: boolean;
+};
+
 type EntityLocation = {
   place: string;
   rel: string;
@@ -21,7 +30,6 @@ type EntityLocation = {
 
 const RESERVED_WORLD_KEYS = new Set(["kind", "public", "private", "location", "space", "render"]);
 const PATCHABLE_ROOT_KEYS = new Set(["kind", "public", "private", "location", "space", "render"]);
-const SHALLOW_MERGED_WORLD_KEYS = new Set(["public", "private", "location", "space", "render"]);
 const POV_EVENT_TYPES = new Set<string>([StoryEventType.$message, StoryEventType.$entity]);
 const MAX_LOCATION_DEPTH = 100;
 
@@ -29,21 +37,18 @@ const MAX_LOCATION_DEPTH = 100;
  * Returns a world-state entity snapshot by name.
  * @name entity
  * @param name Entity name.
- * @returns Entity snapshot with name, persona, and stats, or null if missing.
- * @example entity("ALICE") //=> {"name":"ALICE","persona":"...","kind":"person"}
+ * @returns Entity snapshot with name and stats, or null if missing.
+ * @example entity("ALICE") //=> {"name":"ALICE","kind":"person"}
  */
 export function getEntitySnapshot(session: StorySession, name: SerialValue): SerialValue {
   const id = castToString(name);
-  const item = session.entities[id];
-  if (!item) {
-    return null;
-  }
-
-  return {
-    name: id,
-    persona: item.persona,
-    ...item.stats,
-  };
+  return projectEntitySnapshot(session, id, {
+    observer: null,
+    includePrivate: true,
+    includeSpace: true,
+    includeRender: true,
+    includeExtra: true,
+  });
 }
 
 /**
@@ -118,7 +123,13 @@ export function getEntityPov(session: StorySession, name: SerialValue): SerialVa
 
   const visibleNames = Object.keys(session.entities).filter((target) => isEntityVisibleTo(session, observer, target));
   const out = {
-    you: buildPovEntity(session, observer, observer),
+    you: projectEntitySnapshot(session, observer, {
+      observer,
+      includePrivate: true,
+      includeSpace: true,
+      includeRender: false,
+      includeExtra: true,
+    }),
     people: [] as SerialValue[],
     things: [] as SerialValue[],
     places: [] as SerialValue[],
@@ -129,7 +140,13 @@ export function getEntityPov(session: StorySession, name: SerialValue): SerialVa
     if (target === observer) {
       continue;
     }
-    const value = buildPovEntity(session, observer, target);
+    const value = projectEntitySnapshot(session, target, {
+      observer,
+      includePrivate: false,
+      includeSpace: true,
+      includeRender: false,
+      includeExtra: true,
+    });
     const kind = castToString(safeGet((value ?? {}) as Record<string, SerialValue>, "kind")).toLowerCase();
     if (kind === "place") {
       out.places.push(value);
@@ -146,37 +163,14 @@ export function getEntityPov(session: StorySession, name: SerialValue): SerialVa
   return out;
 }
 
-export function mergeEntityStats(
-  existing: Record<string, SerialValue>,
-  incoming: Record<string, SerialValue>,
-): Record<string, SerialValue> {
-  const next = { ...existing };
-
-  for (const key in incoming) {
-    const value = incoming[key];
-    if (!RESERVED_WORLD_KEYS.has(key)) {
-      next[key] = value;
-      continue;
-    }
-
-    if (SHALLOW_MERGED_WORLD_KEYS.has(key) && isRecord(value) && isRecord(next[key])) {
-      next[key] = {
-        ...(next[key] as Record<string, SerialValue>),
-        ...(value as Record<string, SerialValue>),
-      };
-      continue;
-    }
-
-    next[key] = value;
-  }
-
-  return next;
+export function doesEntityObserveEvent(session: StorySession, observer: SerialValue, event: StoryEvent): boolean {
+  return isEventVisibleTo(session, castToString(observer), event);
 }
 
-export function updateEntityStats(
+export function setEntityEntries(
   ctx: StoryEventContext,
   name: string,
-  incoming: Record<string, SerialValue>,
+  entries: StoryEntityEntry[],
 ): Record<string, SerialValue> | null {
   const item = ctx.session.entities[name];
   if (!item) {
@@ -186,7 +180,8 @@ export function updateEntityStats(
   const prev = cloneLocationValue(
     Object.prototype.hasOwnProperty.call(item.stats, "location") ? item.stats.location : null,
   );
-  item.stats = mergeEntityStats(item.stats, incoming);
+  item.entries = entries;
+  item.stats = readEntityStatsFromEntries(entries);
   syncEntityState(ctx, name, prev);
   return item.stats;
 }
@@ -198,27 +193,26 @@ export function applyWorldPatches(ctx: StoryEventContext, name: SerialValue, pat
     return 0;
   }
 
-  const prev = cloneLocationValue(
-    Object.prototype.hasOwnProperty.call(item.stats, "location") ? item.stats.location : null,
-  );
   let count = 0;
+  let entries = [...item.entries];
   for (let i = 0; i < patches.length; i += 1) {
     const patch = parseWorldPatch(patches[i]);
     if (!patch || !isPatchPathAllowed(patch.path)) {
       continue;
     }
     if (patch.op === "set") {
-      safeSet(item.stats as Record<string, SerialValue>, patch.path, patch.value);
+      entries = upsertEntityEntry(entries, patch.path, patch.value, ctx.rng.next);
       count += 1;
       continue;
     }
 
-    if (deletePath(item.stats, patch.path)) {
+    if (entries.some((entry) => entry.path === patch.path)) {
+      entries = removeEntityEntry(entries, patch.path);
       count += 1;
     }
   }
 
-  syncEntityState(ctx, id, prev);
+  setEntityEntries(ctx, id, entries);
   return count;
 }
 
@@ -267,7 +261,6 @@ export function syncEntityState(ctx: StoryEventContext, name: string, prevValue?
   const next = readLocationShape(item.stats.location);
   const result = {
     ...item.stats,
-    persona: item.persona,
   } as SerialValue;
 
   ctx.set(name, result);
@@ -283,7 +276,7 @@ export function syncEntityState(ctx: StoryEventContext, name: string, prevValue?
   }
 }
 
-function buildPovEntity(session: StorySession, observer: string, target: string): SerialValue {
+export function projectEntitySnapshot(session: StorySession, target: string, opts: EntityProjectionOpts): SerialValue {
   const item = session.entities[target];
   if (!item) {
     return null;
@@ -296,26 +289,27 @@ function buildPovEntity(session: StorySession, observer: string, target: string)
   const base = {
     name: target,
     kind: castToString(item.stats.kind) || "person",
-    persona: item.persona,
     public: { ...publicData },
     location: isRecord(item.stats.location) ? { ...(item.stats.location as Record<string, SerialValue>) } : null,
   } as Record<string, SerialValue>;
 
-  if (observer === target) {
+  if (opts.includePrivate && opts.observer === target) {
     base.private = { ...privateData };
   }
-  if (spaceData) {
+  if (opts.includeSpace && spaceData) {
     base.space = spaceData;
   }
-  if (renderData) {
+  if (opts.includeRender && renderData) {
     base.render = renderData;
   }
 
-  for (const key in item.stats) {
-    if (RESERVED_WORLD_KEYS.has(key)) {
-      continue;
+  if (opts.includeExtra) {
+    for (const key in item.stats) {
+      if (RESERVED_WORLD_KEYS.has(key)) {
+        continue;
+      }
+      base[key] = item.stats[key];
     }
-    base[key] = item.stats[key];
   }
 
   return base;
@@ -498,28 +492,4 @@ function cloneLocationValue(value: SerialValue): SerialValue {
   }
 
   return { ...value };
-}
-
-function deletePath(stats: Record<string, SerialValue>, path: string): boolean {
-  const parts = path.split(".");
-  if (!parts.length) {
-    return false;
-  }
-
-  let current: Record<string, SerialValue> = stats;
-  for (let i = 0; i < parts.length - 1; i += 1) {
-    const part = parts[i]!;
-    const next = current[part];
-    if (!isRecord(next)) {
-      return false;
-    }
-    current = next as Record<string, SerialValue>;
-  }
-
-  const last = parts[parts.length - 1]!;
-  if (!Object.prototype.hasOwnProperty.call(current, last)) {
-    return false;
-  }
-  delete current[last];
-  return true;
 }

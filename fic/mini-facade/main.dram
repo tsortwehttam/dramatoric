@@ -1,0 +1,200 @@
+---
+title: Mini Facade
+---
+
+ONCE: DO
+  HOST:
+  {{title}}
+
+  HOST:
+  You are standing in Trip and Grace's apartment.
+  They are both watching you a little too carefully.
+  Say something.
+END
+
+REACT: TRIP DO
+  IF: $event.from == "PLAYER" DO
+    INTERPRET: $event DO
+      WHEN: The player is pressing on the marriage or exposing the strain between Trip and Grace. DO
+        STATE: DO
+          @mood: angry
+        END
+      END
+    END
+  END
+END
+
+REACT: GRACE DO
+  IF: $event.from == "PLAYER" DO
+    INTERPRET: $event DO
+      WHEN: The player is asking about the conch-shell photograph. DO
+        IF: talkedConch == false DO
+          SET: talkedConch true
+
+          HOST:
+          Grace's eyes flick toward the framed conch-shell photograph on the shelf.
+        END
+      END
+    END
+  END
+END
+
+INPUT: DO
+  INCR: round 1
+
+  IF: round == 2 DO
+    WITH: TRIP DO
+      STATE: DO
+        drunk: 1
+      END
+    END
+  END
+
+  IF: round == 3 DO
+    WITH: GRACE DO
+      STATE: DO
+        drunk: 1
+      END
+    END
+  END
+
+  IF: round == 4 DO
+    WITH: TRIP DO
+      STATE: DO
+        drunk: 2
+      END
+    END
+
+    WITH: GRACE DO
+      STATE: DO
+        drunk: 2
+      END
+    END
+  END
+
+  RUN: Apartment Turn
+END
+
+BLOCK: Apartment Turn DO
+  CUE: GRACE DO
+    SYSTEM PROMPT:
+    Keep Grace poised, intelligent, wounded, and attentive to status.
+    Let her sound like someone trying to remain gracious while resenting the work of it.
+
+    IF: round == 1 DO
+      USER PROMPT:
+      The visitor has only just arrived. Be hospitable, but a little watchful.
+    END
+
+    IF: talkedConch DO
+      USER PROMPT:
+      The player has brought up the conch-shell photograph from early in the marriage.
+    END
+
+    IF: stat("GRACE", "private.drunk") >= 1 DO
+      USER PROMPT:
+      Wine is thinning your restraint.
+    END
+
+    IF: talkedConch && stat("GRACE", "private.drunk") >= 2 DO
+      USER PROMPT:
+      If the photograph becomes the center of the room, you may admit that you had an affair early in the marriage.
+      Do not force it; let it arrive as something finally said aloud.
+    END
+  END
+
+  CUE: TRIP DO
+    SYSTEM PROMPT:
+    You are the host.
+    Keep Trip charming, performative, controlling, and a little brittle.
+    Let him speak like a man trying to keep the evening buoyant by force of personality.
+
+    IF: round == 1 DO
+      USER PROMPT:
+      The visitor has only just arrived. Start with hosting charm.
+    END
+
+    IF: talkedConch DO
+      USER PROMPT:
+      The player has drawn attention to the conch-shell photograph on the shelf. Grace hates that subject.
+    END
+
+    IF: stat("TRIP", "private.drunk") >= 1 DO
+      USER PROMPT:
+      You have had enough gin to feel warmer and less careful.
+    END
+
+    IF: stat("TRIP", "public.mood") == "angry" DO
+      USER PROMPT:
+      Grace has you angry, and the room feels less like a performance and more like a trap.
+    END
+
+    IF: stat("TRIP", "private.drunk") >= 2 && stat("TRIP", "public.mood") == "angry" DO
+      USER PROMPT:
+      If the pressure peaks, you may let slip that your desire has not been directed only at women.
+      Do not force the confession; let it emerge as a loss of control.
+    END
+  END
+END
+
+SCENE: Apartment DO
+  PLACE: APARTMENT DO
+    boundary: [[0, 0], [10, 0], [10, 8], [0, 8]]
+    skybox: apartment_sky.png
+    floor: { texture: parquet_oak.png }
+    ceiling: { texture: plaster_white.png, height: 2.7 }
+    walls: [
+      { texture: apt_wall_south.png },
+      { texture: apt_wall_east.png },
+      { texture: apt_wall_north.png },
+      { texture: apt_wall_west.png }
+    ]
+    light: 0.72
+  END
+
+  PERSON: PLAYER DO
+    place: APARTMENT
+    rel: in
+    pos: [5, 1.5, 0]
+    angle: 0
+  END
+
+  PERSON: TRIP DO
+    @mood: smooth
+    drunk: 0
+    place: APARTMENT
+    rel: in
+    pos: [2.2, 4.1, 0]
+    angle: 20
+    sprite: trip_neutral.png
+    You are Trip, a stylish host using charm, food, and cocktails to keep the room under control.
+  END
+
+  PERSON: GRACE DO
+    @mood: composed
+    drunk: 0
+    place: APARTMENT
+    rel: in
+    pos: [7.4, 4.6, 0]
+    angle: 210
+    sprite: grace_neutral.png
+    You are Grace, elegant, sharp, and tired of turning every evening into something presentable.
+  END
+
+  THING: CONCH PHOTO DO
+    place: APARTMENT
+    rel: in
+    pos: [8.3, 5.7, 1.4]
+    texture: conch_photo.png
+  END
+
+  SET: round 0
+  SET: talkedConch false
+
+  HOST:
+  The apartment is all soft lamplight, expensive surfaces, and a tension neither of them can quite hide.
+  Trip hovers near the bar.
+  Grace stays close to the shelf with the framed conch-shell photograph.
+END
+
+GOTO: Apartment

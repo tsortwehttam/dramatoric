@@ -283,8 +283,8 @@ Hey you! << angry command to stop >> Show me some ID!
 - Parentheses set emotional tone and are not spoken aloud.
 - `<< >>` blocks are inline LLM generation slots. Authored text around them
   is preserved literally, and the LLM generates content to fill each slot.
-- If the speaker is a registered entity, the entity persona is always layered
-  in as base context for LLM generation, even when explicit `<< >>` blocks
+- If the speaker is a registered entity, the entity's authored context is
+  always layered in as base context for LLM generation, even when explicit `<< >>` blocks
   are present.
 
 ## DONE
@@ -387,10 +387,7 @@ EMIT: type someEvent; from hero; mood "tense"
 ## ENTITY
 
 **Summary**
-Declare or update a named entity with stats and a persona.
-The body is parsed in multiple passes: first as structured data (JSON/YAML),
-then as raw persona text. Redeclaring the same entity merges stats and replaces
-the persona.
+Declare or update a named entity with authored entries and derived world state.
 
 **Syntax**
 ```dramatoric
@@ -401,10 +398,9 @@ END
 
 ```dramatoric
 ENTITY: RATZ DO
-  name: Ratz
   health: 100
   mood: calm
-  persona: You are Ratz, a grizzled bartender with a Russian accent.
+  You are Ratz, a grizzled bartender with a Russian accent.
 END
 ```
 
@@ -417,15 +413,11 @@ END
 
 ```dramatoric
 ENTITY: ALICE DO
-  kind: person
-  public:
-    mood: guarded
-  private:
-    goal: get home
-  location:
-    place: JURY ROOM
-    rel: in
-  persona: You are Alice, a skeptical juror.
+  @mood: guarded
+  goal: get home
+  place: JURY ROOM
+  rel: in
+  You are Alice, a skeptical juror.
 END
 ```
 
@@ -433,7 +425,7 @@ END
 ```dramatoric
 ENTITY: GUARD DO
   health: 50
-  persona: You are a stern palace guard.
+  You are a stern palace guard.
 END
 
 GUARD:
@@ -446,16 +438,16 @@ END
 ```
 
 **Notes**
-- If the body parses as structured data with a `persona` field, that field
-  becomes the entity's persona and remaining fields become stats.
-- If the body does not parse as structured data, it is treated as raw persona text.
+- Loose text lines are included in the entity's authored prompt context.
 - Inline parameters (after semicolons) are merged into stats.
-- Redeclaring the same entity merges new stats and replaces the persona.
-- Reserved world-state keys `public`, `private`, and `location` merge shallowly.
+- Redeclaring the same entity merges structured fields and replaces loose prompt lines if new ones are present.
+- Known fields like `place`, `pos`, `sprite`, and `kind` are routed into
+  internal world-state buckets.
+- `@field:` marks a field as public; unmarked fields are private by default.
 - Changing `location.place` on an existing entity emits `location.move`
   plus derived `location.exit` and `location.enter` events.
-- When a speaker name matches a registered entity, the entity's persona is
-  automatically injected into dialogue generation.
+- When a speaker name matches a registered entity, its authored entries are
+  injected into dialogue generation.
 - Access entity stats with `stat("ENTITY_NAME", "statKey")`.
 
 ## EXIT

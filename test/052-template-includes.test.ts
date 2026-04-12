@@ -141,13 +141,13 @@ async function test() {
       END
 
       ENTITY: GUARD DO
-        persona: "{{include('Persona Bits', { mood: 'grim' })}}"
+        {{include('Persona Bits', { mood: 'grim' })}}
       END
     `,
     {},
     MOCK
   );
-  expect(result.entities.GUARD.persona, "You are a guard. Mood: grim.");
+  expect(result.entities.GUARD.entries.filter((item) => item.path === "prompt[]").map((item) => item.value), ["You are a guard. Mood: grim."]);
 }
 
 test();

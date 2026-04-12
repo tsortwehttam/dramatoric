@@ -1,9 +1,8 @@
-import yaml from "js-yaml";
-import { JsonSchema, SerialValue } from "../../lib/CoreTypings";
-import { castToString, isRecord } from "../../lib/EvalCasting";
+import { JsonSchema } from "../../lib/CoreTypings";
 import { isBlank } from "../../lib/TextHelpers";
 import { LLMInstruction } from "../../lib/LLMTypes";
 import { StoryEventContext } from "../Helpers";
+import { buildPromptEntityDoc, readMutableEntryIds, renderEntityPromptBlock } from "./EntityEntryHelpers";
 import { getEntityPov } from "./WorldFunctions";
 
 export function buildCuePromptInstructions(
@@ -22,23 +21,26 @@ export function buildCuePromptInstructions(
   const localUser = local.filter((item) => item.role === "user").map((item) => item.content.trim()).filter(Boolean);
   const info: string[] = [
     `You are ${actor}. Respond in character as ${actor}.`,
-    "Consider your persona (`you`), and the visible `people`, `things`, `places`, and recent `events`.",
-    "Update your own durable state only when something genuinely changes.",
+    "Consider your own authored entries (`you`), and the visible `people`, `things`, `places`, and recent `events`.",
+    "Only change authored entries by returning explicit edits targeting entry ids.",
+    "Use `replace` to revise an entry value and `remove` to delete an entry entirely.",
+    "Do not invent ids. Use only ids shown in the prompt context.",
     "Determine how to act and react given the current visible world.",
     "You must return only strict JSON matching this schema:",
     JSON.stringify(schema, null, 2),
-    'Return JSON with keys "state" and "actions".',
-    '"state" is a partial durable update for your own record only.',
+    'Return JSON with keys "edits" and "actions".',
+    '"edits" is an array of entry edits for your own record only.',
     '"actions" is an array of in-world actions with keys "type", "to", and "body".',
     'Use type="say" for spoken dialogue; the body is your exact utterance.',
     "Use `to=[]` for general actions and directed targets only when clear.",
     "Keep actions minimal, concrete, and in character.",
-    "If nothing meaningful changes, return empty objects/arrays.",
+    "If nothing meaningful changes, return empty arrays.",
+    ...readMutableEntryNotes(entity.entries),
     ...localSystem,
   ];
 
   const user = [
-    entityToPersonaDoc(actor, entity.persona, pov),
+    renderEntityPromptBlock(ctx.session, actor, pov),
     ...localUser,
     `React to the situation as ${actor} and respond with JSON.`,
   ]
@@ -51,63 +53,21 @@ export function buildCuePromptInstructions(
   ];
 }
 
-function entityToPersonaDoc(actor: string, persona: string, pov: SerialValue) {
-  const record = isRecord(pov) ? (pov as Record<string, SerialValue>) : {};
-  const you = readMap(record.you);
-  const people = readNamedMap(record.people);
-  const things = readNamedMap(record.things);
-  const places = readNamedMap(record.places);
-  const events = Array.isArray(record.events)
-    ? record.events.map((item) => eventToPromptFrag(item)).filter((item) => !isBlank(item))
-    : [];
-  const doc = {
-    you: {
-      name: actor,
-      persona,
-      ...you,
-    },
-    people,
-    things,
-    places,
-    events,
-  };
-  return yaml.dump(doc, { lineWidth: -1, noRefs: true }).trim();
-}
-
-function readMap(value: SerialValue): Record<string, SerialValue> {
-  return isRecord(value) ? ({ ...(value as Record<string, SerialValue>) } as Record<string, SerialValue>) : {};
-}
-
-function readNamedMap(value: SerialValue) {
-  if (!Array.isArray(value)) {
-    return {};
-  }
-  const out: Record<string, Record<string, SerialValue>> = {};
-  for (let i = 0; i < value.length; i += 1) {
-    const item = value[i];
-    if (!isRecord(item)) {
-      continue;
-    }
-    const record = { ...(item as Record<string, SerialValue>) };
-    const name = castToString(record.name ?? "").trim();
-    if (!name) {
-      continue;
-    }
-    delete record.name;
-    out[name] = record;
-  }
-  return out;
-}
-
-function eventToPromptFrag(value: SerialValue) {
-  if (!isRecord(value)) {
+export function buildEntityDialoguePrompt(actor: string, ctx: StoryEventContext): string {
+  const doc = buildPromptEntityDoc(ctx.session, actor, actor);
+  if (!doc) {
     return "";
   }
-  const event = value as Record<string, SerialValue>;
-  const from = castToString(event.from ?? "").trim();
-  const body = castToString(event.value ?? "").trim();
-  if (!from && !body) {
-    return "";
+  return JSON.stringify(doc, null, 2);
+}
+
+function readMutableEntryNotes(entries: StoryEventContext["session"]["entities"][string]["entries"]) {
+  const ids = readMutableEntryIds(entries);
+  if (ids.length < 1) {
+    return ["There are no mutable authored entries. Return no edits unless the script explicitly changes state elsewhere."];
   }
-  return `${from}: ${body}`.trim();
+  return [
+    `Only revise mutable entries when needed: ${ids.join(", ")}.`,
+    "Treat non-mutable entries as authored context.",
+  ];
 }

@@ -23,7 +23,6 @@ async function test() {
   expect(evts.length, 1);
   expect(evts[0].from, "GUARD");
   expect((evts[0].result as Record<string, unknown>).health, 50);
-  expect((evts[0].result as Record<string, unknown>).persona, "You are a stern palace guard.");
 
   // setStat emits $entity event
   result = await execStoryTest(
@@ -62,7 +61,6 @@ async function test() {
   expect(evts[1].from, "RATZ");
   expect((evts[1].result as Record<string, unknown>).health, 50);
   expect((evts[1].result as Record<string, unknown>).wounded, true);
-  expect((evts[1].result as Record<string, unknown>).persona, "You are Ratz, a wounded bartender.");
 
   // Multiple setStat calls emit separate events
   result = await execStoryTest(

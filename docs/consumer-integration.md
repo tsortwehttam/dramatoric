@@ -147,8 +147,8 @@ const callbacks: ContextCallbacks = {
         break;
 
       case "$entity":
-        // Entity stats or persona changed
-        // event.from = entity name, event.result = changed fields
+        // Entity authored entries or derived state changed
+        // event.from = entity name, event.result = current state snapshot
         renderer.updateCharacter(event.from, event.result);
         break;
 
@@ -162,6 +162,41 @@ const callbacks: ContextCallbacks = {
 };
 ```
 
+### A Minimal Client Adapter Surface
+
+If you want one renderer-facing contract that works for both a Three.js client
+and a text client, keep it to:
+
+- one initial snapshot
+- one stream of `StoryEvent`s
+
+The helper module [`lib/ClientAdapter.ts`](../lib/ClientAdapter.ts) projects a
+full `StorySession` into a smaller client snapshot and filters out engine-only
+events:
+
+```typescript
+import { buildClientSnapshot, toClientEventMessage } from "aramatoric/lib/ClientAdapter";
+
+const snapshot = buildClientSnapshot(ctx.session);
+
+const maybeMessage = toClientEventMessage(event);
+if (maybeMessage) {
+  socket.send(JSON.stringify(maybeMessage));
+}
+```
+
+The projected snapshot intentionally includes only renderer-relevant entity
+state:
+
+- `kind`
+- `public`
+- `location`
+- `space`
+- `render`
+
+It does not include engine internals like authored prompt entries, `private`, DDV state, or
+handler bookkeeping.
+
 ### Event types reference
 
 | Type       | Channel  | Description                                  |
@@ -170,7 +205,7 @@ const callbacks: ContextCallbacks = {
 | `$message` | `output` | Dialogue, narration, or other spoken content |
 | `$message` | `input`  | Player input (parsed into semantic message)  |
 | `$media`   | `output` | Sound effect, music, or image                |
-| `$entity`  | `engine` | Entity stats or persona changed              |
+| `$entity`  | `engine` | Entity authored entries or derived state changed |
 | `$wait`    | `output` | Pause for dramatic timing                    |
 | `$exit`    | `engine` | Story ended                                  |
 
@@ -203,7 +238,7 @@ END
 ### Updating entity state from scripts
 
 ```dramatoric
-// Update via redeclaration (merges stats, replaces persona)
+// Update via redeclaration (merges routed fields and replaces prompt lines when present)
 ENTITY: GUARD; x 2; z 1; expression "alert" DO
   You are a palace guard who just noticed something suspicious.
 END
@@ -217,8 +252,8 @@ SET: _ {{setStat("GUARD", "x", 0)}}
 
 Both approaches emit `$entity` events through `onEvent`:
 
-- **`ENTITY:` directive** emits a full snapshot: all current stats + persona
-- **`setStat()`** emits a delta: just the changed key and value
+- **`ENTITY:` directive** emits the entity's current derived state snapshot
+- **`setStat()`** emits the current derived state snapshot after the mutation
 
 ```typescript
 onEvent: (event) => {
@@ -238,7 +273,7 @@ You can also read entity state at any time from the session:
 const guard = ctx.session.entities["GUARD"];
 guard.stats.x; // 5
 guard.stats.expression; // "neutral"
-guard.persona; // "You are a stern palace guard."
+guard.entries; // Authored prompt/state entries with stable ids
 ```
 
 ## Custom IO Adapters

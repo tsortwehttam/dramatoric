@@ -1,6 +1,6 @@
 import { allTruthy } from "../../lib/EvalCasting";
 import { evalAllClauses, executeKids, splitConditionalKids } from "../Execution";
-import { IF_TYPE, INPUT_KEY, ON_TYPE, ONCE_TYPE, StoryDirectiveFuncDef, WHEN_TYPE } from "../Helpers";
+import { ANY_EVENT, IF_TYPE, INPUT_KEY, ON_TYPE, ONCE_TYPE, StoryDirectiveFuncDef, WHEN_TYPE } from "../Helpers";
 import { createLLMYieldIfFunc } from "../Processor";
 
 /**
@@ -158,6 +158,7 @@ function isOnMatch(
       if (ctx.event.channel === "input") return true;
       continue;
     }
+    if (eventType === ANY_EVENT) return true;
     if (ctx.event.type === eventType) return true;
   }
   return false;

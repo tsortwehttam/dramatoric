@@ -26,18 +26,17 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        location:
-          place: ROOM A
-          rel: in
-        persona: You are Alice.
+        place: ROOM A
+        rel: in
+        You are Alice.
       END
     `,
     {},
     MOCK,
   );
 
-  expect(byType(result.history, "location.enter").length, 0);
-  expect(byType(result.history, "location.move").length, 0);
+  expect(byType(result.history, "location.enter").filter((event) => event.from === "ALICE").length, 1);
+  expect(byType(result.history, "location.move").filter((event) => event.from === "ALICE").length, 1);
   expect(byType(result.history, "location.exit").filter((event) => event.from === "ALICE").length, 0);
 
   result = await execStoryTest(
@@ -52,10 +51,9 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        location:
-          place: ROOM A
-          rel: in
-        persona: You are Alice.
+        place: ROOM A
+        rel: in
+        You are Alice.
       END
 
       SET: count {{applyPatches("ALICE", [{ op: "set", path: "location.place", value: "ROOM B" }, { op: "set", path: "location.rel", value: "in" }])}}
@@ -68,22 +66,25 @@ async function test() {
   const exits = byType(result.history, "location.exit").filter((event) => event.from === "ALICE");
   const enters = byType(result.history, "location.enter").filter((event) => event.from === "ALICE");
   const moves = byType(result.history, "location.move").filter((event) => event.from === "ALICE");
+  const lastExit = exits.at(-1);
+  const lastEnter = enters.at(-1);
+  const lastMove = moves.at(-1);
   expect(exits.length, 1);
-  expect(enters.length, 1);
-  expect(moves.length, 1);
-  expect(exits[0]?.origin, "ROOM A");
-  expect(exits[0]?.destination, "ROOM B");
-  expect(enters[0]?.origin, "ROOM A");
-  expect(enters[0]?.destination, "ROOM B");
-  expect(moves[0]?.origin, "ROOM A");
-  expect(moves[0]?.destination, "ROOM B");
-  expectHas((exits[0]?.result ?? {}) as Record<string, unknown>, {
+  expect(enters.length, 2);
+  expect(moves.length, 2);
+  expect(lastExit?.origin, "ROOM A");
+  expect(lastExit?.destination, "ROOM B");
+  expect(lastEnter?.origin, "ROOM A");
+  expect(lastEnter?.destination, "ROOM B");
+  expect(lastMove?.origin, "ROOM A");
+  expect(lastMove?.destination, "ROOM B");
+  expectHas((lastExit?.result ?? {}) as Record<string, unknown>, {
     entity: "ALICE",
     rel: "in",
     originRel: "in",
     destinationRel: "in",
   });
-  expectHas((enters[0]?.result ?? {}) as Record<string, unknown>, {
+  expectHas((lastEnter?.result ?? {}) as Record<string, unknown>, {
     entity: "ALICE",
     rel: "in",
     originRel: "in",
@@ -98,10 +99,9 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        location:
-          place: ROOM A
-          rel: in
-        persona: You are Alice.
+        place: ROOM A
+        rel: in
+        You are Alice.
       END
 
       SET: _ {{setStat("ALICE", "location.rel", "by door")}}
@@ -110,8 +110,8 @@ async function test() {
     MOCK,
   );
 
-  expect(byType(result.history, "location.enter").length, 0);
-  expect(byType(result.history, "location.move").length, 0);
+  expect(byType(result.history, "location.enter").filter((event) => event.from === "ALICE").length, 1);
+  expect(byType(result.history, "location.move").filter((event) => event.from === "ALICE").length, 1);
   expect(byType(result.history, "location.exit").filter((event) => event.from === "ALICE").length, 0);
 
   result = await execStoryTest(
@@ -122,7 +122,7 @@ async function test() {
 
       ENTITY: ALICE DO
         kind: person
-        persona: You are Alice.
+        You are Alice.
       END
 
       SET: _ {{setStat("ALICE", "location.place", "ROOM A")}}

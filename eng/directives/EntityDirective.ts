@@ -1,18 +1,22 @@
-import { SerialValue } from "../../lib/CoreTypings";
-import { safeJsonOrYamlParse } from "../../lib/JSONAndYAMLHelpers";
-import { isBlank } from "../../lib/TextHelpers";
 import { readBody } from "../Execution";
-import { updateEntityStats } from "../functions/WorldFunctions";
-import { ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE, readNamedClause, StoryDirectiveFuncDef, StoryEventContext } from "../Helpers";
+import { parseEntityBody } from "../EntityParseHelpers";
+import { createEntityEntries, mergeEntityEntries } from "../functions/EntityEntryHelpers";
+import { setEntityEntries } from "../functions/WorldFunctions";
+import {
+  ENTITY_TYPE,
+  PERSON_TYPE,
+  PLACE_TYPE,
+  StoryEntityEntry,
+  StoryDirectiveFuncDef,
+  THING_TYPE,
+  readNamedClause,
+} from "../Helpers";
 
 /**
  * ## ENTITY
  *
  * **Summary**
- * Declare or update a named entity with stats and a persona.
- * The body is parsed in multiple passes: first as structured data (JSON/YAML),
- * then as raw persona text. Redeclaring the same entity merges stats and replaces
- * the persona.
+ * Declare or update a named entity with authored entries and derived world state.
  *
  * **Syntax**
  * ```dramatoric
@@ -23,10 +27,9 @@ import { ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE, readNamedClause, Stor
  *
  * ```dramatoric
  * ENTITY: RATZ DO
- *   name: Ratz
  *   health: 100
  *   mood: calm
- *   persona: You are Ratz, a grizzled bartender with a Russian accent.
+ *   You are Ratz, a grizzled bartender with a Russian accent.
  * END
  * ```
  *
@@ -39,15 +42,11 @@ import { ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE, readNamedClause, Stor
  *
  * ```dramatoric
  * ENTITY: ALICE DO
- *   kind: person
- *   public:
- *     mood: guarded
- *   private:
- *     goal: get home
- *   location:
- *     place: JURY ROOM
- *     rel: in
- *   persona: You are Alice, a skeptical juror.
+ *   @mood: guarded
+ *   goal: get home
+ *   place: JURY ROOM
+ *   rel: in
+ *   You are Alice, a skeptical juror.
  * END
  * ```
  *
@@ -55,7 +54,7 @@ import { ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE, readNamedClause, Stor
  * ```dramatoric
  * ENTITY: GUARD DO
  *   health: 50
- *   persona: You are a stern palace guard.
+ *   You are a stern palace guard.
  * END
  *
  * GUARD:
@@ -68,16 +67,16 @@ import { ENTITY_TYPE, PERSON_TYPE, PLACE_TYPE, THING_TYPE, readNamedClause, Stor
  * ```
  *
  * **Notes**
- * - If the body parses as structured data with a `persona` field, that field
- *   becomes the entity's persona and remaining fields become stats.
- * - If the body does not parse as structured data, it is treated as raw persona text.
+ * - Loose text lines are included in the entity's authored prompt context.
  * - Inline parameters (after semicolons) are merged into stats.
- * - Redeclaring the same entity merges new stats and replaces the persona.
- * - Reserved world-state keys `public`, `private`, `location`, `space`, and `render` merge shallowly.
+ * - Redeclaring the same entity merges structured fields and replaces loose prompt lines if new ones are present.
+ * - Known fields like `place`, `pos`, `sprite`, and `kind` are routed into
+ *   internal world-state buckets.
+ * - `@field:` marks a field as public; unmarked fields are private by default.
  * - Changing `location.place` on an existing entity emits `location.move`
  *   plus derived `location.exit` and `location.enter` events.
- * - When a speaker name matches a registered entity, the entity's persona is
- *   automatically injected into dialogue generation.
+ * - When a speaker name matches a registered entity, its authored entries are
+ *   injected into dialogue generation.
  * - Access entity stats with `stat("ENTITY_NAME", "statKey")`.
  */
 export const ENTITY_directive: StoryDirectiveFuncDef = {
@@ -89,32 +88,46 @@ export const ENTITY_directive: StoryDirectiveFuncDef = {
     }
 
     const body = await readBody(node, ctx);
-    const { stats, persona } = parseEntityBody(body);
+    const parsed = parseEntityBody(body);
+    const entries = createEntityEntries(parsed.entries, ctx.rng.next);
 
-    // Merge inline params (after first key) as stats
+    const extra: StoryEntityEntry[] = [];
     for (const key in pms.trailers) {
-      stats[key] = pms.trailers[key];
+      extra.push({
+        id: ctx.event.id,
+        path: key,
+        value: pms.trailers[key],
+        public: false,
+        mutable: false,
+      });
     }
     const inferred = readInferredKind(node.type);
-    if (inferred && !stats.kind) {
-      stats.kind = inferred;
+    if (inferred && !entries.some((item) => item.path === "kind")) {
+      extra.push({
+        id: ctx.event.id,
+        path: "kind",
+        value: inferred,
+        public: false,
+        mutable: false,
+      });
     }
+    const incoming = [...entries, ...extra].map((entry, i) => ({
+      ...entry,
+      id: entry.id === ctx.event.id ? `${ctx.event.id}:${i}` : entry.id,
+    }));
 
     const existing = ctx.session.entities[name];
     if (existing) {
-      if (persona) {
-        existing.persona = persona;
-      }
-      existing.modus = node;
-      updateEntityStats(ctx, name, stats);
-    } else {
-      ctx.session.entities[name] = {
-        modus: node,
-        persona,
-        stats,
-      };
-      updateEntityStats(ctx, name, {});
+      existing.entries = mergeEntityEntries(existing.entries, incoming, true);
+      setEntityEntries(ctx, name, existing.entries);
+      return [ctx.session.entities[name].stats];
     }
+
+    ctx.session.entities[name] = {
+      entries: incoming,
+      stats: {},
+    };
+    setEntityEntries(ctx, name, incoming);
     return [ctx.session.entities[name].stats];
   },
 };
@@ -130,114 +143,4 @@ function readInferredKind(type: string): string {
     return "thing";
   }
   return "";
-}
-
-const PERSONA_KEYS = new Set(["persona", "modus", "description", "character", "bio"]);
-const NESTED_SECTION_KEYS = new Set(["public", "private", "location", "space", "render"]);
-
-function parseEntityBody(body: string): {
-  stats: Record<string, SerialValue>;
-  persona: string;
-} {
-  if (isBlank(body)) {
-    return { stats: {}, persona: "" };
-  }
-
-  const parsed = parseEntityRecordBody(body);
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const record = parsed as Record<string, SerialValue>;
-    const stats: Record<string, SerialValue> = {};
-    let persona = "";
-    for (const key in record) {
-      if (PERSONA_KEYS.has(key.toLowerCase())) {
-        persona = String(record[key] ?? "");
-      } else {
-        stats[key] = record[key];
-      }
-    }
-    if (persona || Object.keys(stats).length > 0) {
-      return { stats, persona };
-    }
-  }
-
-  // Pass 2: Raw persona text
-  return { stats: {}, persona: body };
-}
-
-export function parseEntityRecordBody(body: string): SerialValue {
-  const trimmed = body.trim();
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    return safeJsonOrYamlParse(body);
-  }
-
-  const parsed = parseFlatStructuredLines(body);
-  if (parsed) {
-    return parsed;
-  }
-
-  return safeJsonOrYamlParse(body);
-}
-
-function parseFlatStructuredLines(body: string): Record<string, SerialValue> | null {
-  const lines = body
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (!lines.length) {
-    return null;
-  }
-
-  const out: Record<string, SerialValue> = {};
-  let section: string | null = null;
-  let sawStructured = false;
-
-  for (const line of lines) {
-    const header = line.match(/^([^:]+):\s*$/);
-    if (header) {
-      section = header[1]!.trim();
-      if (!NESTED_SECTION_KEYS.has(section)) {
-        return null;
-      }
-      out[section] = {};
-      sawStructured = true;
-      continue;
-    }
-
-    const pair = line.match(/^([^:]+):\s*(.+)$/);
-    if (!pair) {
-      return null;
-    }
-
-    const key = pair[1]!.trim();
-    const value = safeJsonOrYamlParse(pair[2]!.trim());
-    sawStructured = true;
-
-    if (
-      section &&
-      !PERSONA_KEYS.has(key.toLowerCase()) &&
-      !RESERVED_WORLD_ROOT_KEYS.has(key) &&
-      typeof out[section] === "object" &&
-      out[section] !== null &&
-      !Array.isArray(out[section])
-    ) {
-      (out[section] as Record<string, SerialValue>)[key] = value;
-      continue;
-    }
-
-    section = null;
-    out[key] = value;
-  }
-
-  return sawStructured ? out : null;
-}
-
-const RESERVED_WORLD_ROOT_KEYS = new Set(["kind", "public", "private", "location", "space", "render"]);
-
-export function resolveEntityPersona(speaker: string, ctx: StoryEventContext): string {
-  const entity = ctx.session.entities[speaker];
-  if (!entity) {
-    return "";
-  }
-  return entity.persona;
 }

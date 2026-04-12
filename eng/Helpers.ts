@@ -102,7 +102,7 @@ export enum StoryEventType {
   $message = "$message", // Canonical semantic message type representing a single interpreted intent or act - world command, dialog, narration, meta command, query, etc. Meaning is determined by channel + act + from + to, not by this type alone.
   $media = "$media", // Non-text media destined for the renderer/client: sound effects, music, images, animations, etc. Payload is carried in the event's media fields.
   $wait = "$wait", // Tell the client to wait for a period of time for e.g. dramatic effect
-  $entity = "$entity", // An entity's stats or persona changed. Carries the entity name in `from` and changed fields in `result`.
+  $entity = "$entity", // An entity's authored entries or derived stats changed. Carries the entity name in `from` and current state in `result`.
 }
 
 export const ActSchema = z.union([
@@ -233,8 +233,7 @@ export type StorySession = {
   entities: Record<
     string,
     {
-      modus: WellNode;
-      persona: string;
+      entries: StoryEntityEntry[];
       stats: Record<string, SerialValue>;
     }
   >;
@@ -254,6 +253,16 @@ export type StorySession = {
     maxTimePerStep: number;
   };
 };
+
+export type StoryEntityEntry = {
+  id: string;
+  path: string;
+  value: SerialValue;
+  public: boolean;
+  mutable: boolean;
+};
+
+export type StorySessionLegacyRemoved = never;
 
 export type LLMCallOptions = {
   models: string[];
@@ -423,6 +432,9 @@ export const IF_TYPE = "IF";
 export const ELSE_TYPE = "ELSE";
 export const ONCE_TYPE = "ONCE";
 export const INPUT_TYPE = "INPUT";
+export const HEAR_TYPE = "HEAR";
+export const REACT_TYPE = "REACT";
+export const INTERPRET_TYPE = "INTERPRET";
 export const MACRO_TYPE = "MACRO";
 export const BLOCK_TYPE = "BLOCK";
 export const TEMPLATE_TYPE = "TEMPLATE";
@@ -487,6 +499,9 @@ export const DIRECTIVE_TYPES = [
   ELSE_TYPE,
   ONCE_TYPE,
   INPUT_TYPE,
+  HEAR_TYPE,
+  REACT_TYPE,
+  INTERPRET_TYPE,
   BLOCK_TYPE,
   TEMPLATE_TYPE,
   MUSIC_TYPE,

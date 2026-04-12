@@ -4,6 +4,8 @@
 
 Dramatoric is an interactive narrative engine for creating dynamic, branching stories. Think interactive fiction (intfic), story-driven games, and generative media — but with AI-powered dialogue, dynamic rendering, and a scripting language designed for human-AI collaboration. You can play the detective in a true crime thriller, the villain in a sweeping fantasy, or the narrator of a collaborative romance. Dramatoric handles the story layer — plot, dialogue, characters, and logic — and leaves rendering to whatever medium you choose: audio, text, visuals, or something new entirely.
 
+It is especially well-suited to FPT (First-Person Talker) games and stories: Façade-like interactive dramas where the player is present in a room, types what they say, and characters hear, react, and improvise from the same shared world state.
+
 Note: The README of this repo is generated from a real Dramatoric script file. Do not edit the README.md file directly. See `fic/readme/main.dram` and make changes there.
 
 ## Dramatoric Story Language
@@ -383,30 +385,29 @@ Think of it as stage directions for an actor who improvises. You set the guardra
 
 ### Entities: Persistent Characters
 
-Writing `<< >>` descriptions every time a recurring character speaks gets old. `ENTITY:` defines a character once, and Dramatoric remembers the rest. After that, any stanza with that character's name auto-generates dialogue from the stored persona.
+Writing `<< >>` descriptions every time a recurring character speaks gets old. `ENTITY:` defines a character once, and Dramatoric remembers its authored context. After that, any stanza with that character's name auto-generates dialogue from those stored entries.
 
 ```well
 // Mr. Collins arrives! Define him as an entity.
-// The body supports structured data (YAML or JSON).
-// "persona" becomes the character's AI instructions; other fields become stats.
+// Structured fields become stats; loose lines become prompt text.
 ENTITY: MR. COLLINS DO
   confidence: 10
   flattery: 100
-  persona: You are Mr. Collins, a pompous and obsequious clergyman. You speak in long-winded, self-important sentences and never miss an opportunity to mention your patroness, Lady Catherine de Bourgh.
+  You are Mr. Collins, a pompous and obsequious clergyman. You speak in long-winded, self-important sentences and never miss an opportunity to mention your patroness, Lady Catherine de Bourgh.
 END
 
 NARRATOR:
 A portly man in clerical dress bustles toward you with alarming enthusiasm.
 
 // MR. COLLINS is now a registered entity — just his name triggers
-// AI-generated dialogue from his stored persona. No << >> block needed!
+// AI-generated dialogue from his stored authored context. No << >> block needed!
 MR. COLLINS:
 ```
 
-`MR. COLLINS:` with no `<< >>` block triggers AI dialogue from the stored persona. If you don't need stats, skip the YAML and write raw persona text:
+`MR. COLLINS:` with no `<< >>` block triggers AI dialogue from the stored authored context. If you don't need structured fields, just write raw prompt text:
 
 ```well
-// Without structured data, the whole body is treated as raw persona text.
+// Without structured data, the whole body is treated as raw prompt text.
 ENTITY: MRS. BENNET DO
   You are Mrs. Bennet, a nervous and excitable mother of five daughters.
   Your sole mission in life is to see them all married well.
@@ -414,28 +415,28 @@ ENTITY: MRS. BENNET DO
 END
 ```
 
-Stats are accessible with `stat()` and modifiable with `setStat()`. Check existence with `hasEntity()`. Redeclaring an entity merges new stats and replaces the persona, so characters can evolve mid-story:
+Stats are accessible with `stat()` and modifiable with `setStat()`. Check existence with `hasEntity()`. Redeclaring an entity merges new structured fields and replaces loose prompt lines, so characters can evolve mid-story:
 
 ```well
 // Query a stat
 SET: conf {{stat("MR. COLLINS", "confidence")}}
 
 // After Mr. Collins embarrasses himself, update his entity.
-// New stats merge in; the persona is replaced.
+// New structured fields merge in; the loose prompt lines are replaced.
 ENTITY: MR. COLLINS; confidence 2 DO
   You are Mr. Collins, freshly humiliated after a disastrous introduction.
   You are stammering and nervous.
   You still mention Lady Catherine, but with less conviction.
 END
 
-// His next line reflects his updated persona.
+// His next line reflects his updated authored context.
 MR. COLLINS:
 ```
 
-A `<< >>` block always overrides the entity persona for that line. Entity bodies support `{{}}` interpolation too.
+A `<< >>` block always overrides the entity's automatic prompt context for that line. Entity bodies support `{{}}` interpolation too.
 
 ```well
-// << >> overrides the entity's automatic persona for this line.
+// << >> overrides the entity's automatic prompt context for this line.
 MR. COLLINS:
 << Apologize to Mr. Darcy for stepping on his foot. Mention Lady Catherine at least twice. >>
 ```
@@ -444,38 +445,31 @@ Entities give characters persistent identity: automatic in-character dialogue, t
 
 ## World State and POV
 
-`ENTITY:` can also hold shared world state. Keep `SCENE` for narrative flow and use entity `kind`, `public`, `private`, and `location` for simulation data.
+`ENTITY:` can also hold shared world state. Keep `SCENE` for narrative flow and use entity `kind`, flat shared/private fields, and `place`/`rel` for simulation data.
 
 ```well
 BLOCK: World State Example DO
   ENTITY: JURY ROOM DO
     kind: place
-    public:
-      label: Jury Room
+    @label: Jury Room
   END
 
   ENTITY: ALICE DO
     kind: person
-    public:
-      mood: guarded
-    private:
-      goal: get home
-    location:
-      place: JURY ROOM
-      rel: in
-    persona: You are Alice, a skeptical juror.
+    @mood: guarded
+    goal: get home
+    place: JURY ROOM
+    rel: in
+    You are Alice, a skeptical juror.
   END
 
   ENTITY: BOB DO
     kind: person
-    public:
-      mood: tense
-    private:
-      goal: convict
-    location:
-      place: JURY ROOM
-      rel: in
-    persona: You are Bob, an impatient juror.
+    @mood: tense
+    goal: convict
+    place: JURY ROOM
+    rel: in
+    You are Bob, an impatient juror.
   END
 ```
 
@@ -510,11 +504,9 @@ BLOCK: Deliberation Loop DO
 
     WITH: DO
       STATE: DO
-        public:
-          mood: open
-        location:
-          place: HALLWAY
-          rel: in
+        @mood: open
+        place: HALLWAY
+        rel: in
       END
 
       SAY: to BOB
@@ -618,15 +610,15 @@ END
 guests = DATA: DO
   - name: Mr. Bingley
     mood: cheerful
-    persona: You are warm, friendly, and eager to please.
+    prompt: You are warm, friendly, and eager to please.
 
   - name: Mr. Darcy
     mood: reserved
-    persona: You are proud and guarded. You speak only when necessary.
+    prompt: You are proud and guarded. You speak only when necessary.
 
   - name: Mr. Collins
     mood: obsequious
-    persona: You are pompous and long-winded. You love to flatter.
+    prompt: You are pompous and long-winded. You love to flatter.
 END
 
 NARRATOR:
@@ -635,7 +627,7 @@ Several guests approach you in turn.
 EACH: guests DO |guest|
   {{guest.name}}:
   <<
-  {{guest.persona}}
+  {{guest.prompt}}
   Greet the player briefly.
   >>
 END

@@ -23,6 +23,8 @@ import { LOAD_directive, SAVE_directive } from "./directives/SaveLoadDirectives"
 import {
   ACT_directive,
   CUE_directive,
+  INTERPRET_directive,
+  REACT_directive,
   SAY_directive,
   SIMULATE_directive,
   STATE_directive,
@@ -56,6 +58,8 @@ DIRECTIVES.push(ENTITY_directive);
 DIRECTIVES.push(SIMULATE_directive);
 DIRECTIVES.push(CUE_directive);
 DIRECTIVES.push(WITH_directive);
+DIRECTIVES.push(REACT_directive);
+DIRECTIVES.push(INTERPRET_directive);
 DIRECTIVES.push(STATE_directive);
 DIRECTIVES.push(SAY_directive);
 DIRECTIVES.push(ACT_directive);

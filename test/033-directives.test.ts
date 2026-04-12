@@ -1,5 +1,5 @@
 import dedent from "dedent";
-import { execStoryTest } from "./TestEngineUtils";
+import { execStoryTest, execStoryTestWithMockLlm } from "./TestEngineUtils";
 import { expect, expectHas } from "./TestUtils";
 
 async function test() {
@@ -55,6 +55,98 @@ async function test() {
       value: "The door is open!",
     }
   );
+
+  result = await execStoryTest(
+    dedent`
+      HEAR: DO
+        FRANK:
+        I heard that.
+      END
+    `,
+    {
+      inputs: [{ from: "PLAYER", raw: "hello", type: "$message", act: "dialog", to: [], value: "hello" }],
+    }
+  );
+  expectHas(result.history.find((e) => e.value === "I heard that."), {
+    from: "FRANK",
+    value: "I heard that.",
+  });
+
+  result = await execStoryTest(
+    dedent`
+      HEAR: TRIP DO
+        FRANK:
+        Trip heard that.
+      END
+    `,
+    {
+      inputs: [{ from: "PLAYER", raw: "hello trip", type: "$message", act: "dialog", to: ["TRIP"], value: "hello trip" }],
+    }
+  );
+  expectHas(result.history.find((e) => e.value === "Trip heard that."), {
+    from: "FRANK",
+    value: "Trip heard that.",
+  });
+
+  result = await execStoryTest(
+    dedent`
+      HEAR: TRIP DO
+        FRANK:
+        Trip heard that.
+      END
+    `,
+    {
+      inputs: [{ from: "PLAYER", raw: "hello grace", type: "$message", act: "dialog", to: ["GRACE"], value: "hello grace" }],
+    }
+  );
+  expect(result.history.find((e) => e.value === "Trip heard that.") == null, true);
+
+  result = await execStoryTest(
+    dedent`
+      HEAR: TRIP; GRACE DO
+        FRANK:
+        One of them heard that.
+      END
+    `,
+    {
+      inputs: [{ from: "PLAYER", raw: "hello grace", type: "$message", act: "dialog", to: ["GRACE"], value: "hello grace" }],
+    }
+  );
+  expectHas(result.history.find((e) => e.value === "One of them heard that."), {
+    from: "FRANK",
+    value: "One of them heard that.",
+  });
+
+  result = await execStoryTestWithMockLlm(
+    dedent`
+      PERSON: TRIP DO
+        @mood: smooth
+      END
+
+      REACT: TRIP DO
+        WHEN: The player is pressing on the marriage. DO
+          STATE: DO
+            @mood: angry
+          END
+        END
+      END
+    `,
+    {
+      inputs: [{ from: "PLAYER", raw: "You two seem tense.", type: "$message", act: "dialog", to: ["TRIP"], value: "You two seem tense." }],
+    },
+    [
+      {
+        name: "trip reaction",
+        systemIncludes: ["authored reaction descriptions match an observed event for TRIP"],
+        userIncludes: ["type: $message", "from: PLAYER", "You two seem tense.", "The player is pressing on the marriage."],
+        schemaIncludes: ['"matches"'],
+        reply: {
+          matches: ["The player is pressing on the marriage."],
+        },
+      },
+    ],
+  );
+  expect(result.entities.TRIP.stats.public, { mood: "angry" });
 
   // IF: eventName shorthand - event not present (inside ON: $input handler)
   result = await execStoryTest(

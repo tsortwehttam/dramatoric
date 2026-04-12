@@ -1,17 +1,19 @@
 import { SerialValue } from "../../lib/CoreTypings";
-import { castToString, safeGet, safeSet } from "../../lib/EvalCasting";
+import { castToString, isRecord, safeGet } from "../../lib/EvalCasting";
 import { StoryEventContext, StorySession } from "../Helpers";
 import { ExprEvalFunc } from "../Evaluator";
 import {
   applyWorldPatches,
+  doesEntityObserveEvent,
   areEntitiesCoLocated,
   emitWorldActions,
   getEntityLocation,
   getEntityPov,
   getEntitySnapshot,
   isEntityVisibleTo,
-  updateEntityStats,
+  setEntityEntries,
 } from "./WorldFunctions";
+import { upsertEntityEntry } from "./EntityEntryHelpers";
 
 export function buildWorldExprFunctions(getCtx: () => StoryEventContext): Record<string, ExprEvalFunc> {
   const stat: ExprEvalFunc = (id: SerialValue, key: SerialValue): SerialValue => {
@@ -29,9 +31,8 @@ export function buildWorldExprFunctions(getCtx: () => StoryEventContext): Record
     const eid = castToString(id);
     const ekey = castToString(key);
     if (session.entities[eid]) {
-      const next = { ...session.entities[eid].stats } as Record<string, SerialValue>;
-      safeSet(next, ekey, value);
-      updateEntityStats(getCtx(), eid, next);
+      const next = upsertEntityEntry(session.entities[eid].entries, ekey, value, getCtx().rng.next);
+      setEntityEntries(getCtx(), eid, next);
       return value;
     }
     return 0;
@@ -51,6 +52,8 @@ export function buildWorldExprFunctions(getCtx: () => StoryEventContext): Record
     loc: (id) => getEntityLocation(getCtx().session, id),
     coLocated: (a, b) => areEntitiesCoLocated(getCtx().session, a, b),
     visibleTo: (observer, target) => isEntityVisibleTo(getCtx().session, observer, target),
+    doesObserveEvent: (observer, event) =>
+      isRecord(event) ? doesEntityObserveEvent(getCtx().session, observer, event as any) : false,
     pov: (id) => getEntityPov(getCtx().session, id),
     applyPatches: (id, patches) => applyWorldPatches(getCtx(), id, patches),
     emitActions: (actor, actions) => emitWorldActions(getCtx(), actor, actions),
@@ -68,6 +71,7 @@ export function buildCompileWorldExprFunctions(): Record<string, ExprEvalFunc> {
     loc: (id) => getEntityLocation(session, id),
     coLocated: () => false,
     visibleTo: () => false,
+    doesObserveEvent: () => false,
     pov: (id) => getEntityPov(session, id),
     applyPatches: () => 0,
     emitActions: () => 0,

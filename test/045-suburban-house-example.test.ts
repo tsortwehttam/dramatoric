@@ -21,7 +21,7 @@ async function test() {
       ],
       schemaIncludes: [],
       reply: {
-        state: {},
+        edits: [],
         actions: [
           {
             type: "say",
@@ -42,7 +42,7 @@ async function test() {
       ],
       schemaIncludes: [],
       reply: {
-        state: {},
+        edits: [],
         actions: [
           {
             type: "say",
