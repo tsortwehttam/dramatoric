@@ -1,0 +1,43 @@
+// A tiny two-hander demonstrating the .drama playscript format.
+// One production rule: Subject verb args.
+
+Matt desc A tall blond man with a wide head
+Matt prompt You are Matt, a friendly professor. Stay curious and kind.
+Matt hair_color blond
+Matt species male
+John desc A wiry skeptic in a gray coat
+John prompt You are John, a dry-witted colleague of Matt.
+John species male
+
+Set add table center
+Set add lamp upstage stage_left
+
+Scene start foo
+Title show "Example Playscript" 2.5s
+Camera lookat Matt
+Matt say This is dialog.
+Matt gesture present
+Matt say Every line is an instruction: subject, verb, value.
+Matt say You can use brackets [excitedly] for TTS voice direction.
+Matt gesture sigh
+Camera lookat John 2.5s
+John gesture nod
+John say That's right, Matt. And {{mustache}} passes straight through.
+Block run banter A=Matt B=John
+Scene run coda
+
+Scene end
+Block start banter
+A say We can reuse this exchange with any two speakers.
+B gesture laugh
+B say In a dentist office or a park — the block doesn't care.
+
+Block end
+Scene start coda
+Camera wide 1.5s
+Matt walkto table
+Matt gesture shrug
+Matt say And that's the whole grammar.
+Stage wait 1
+
+Scene end

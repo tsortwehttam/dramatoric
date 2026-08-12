@@ -1,0 +1,1046 @@
+// Golden cartridge: a compact reference for writing a complete Dramatoric story
+// game in one .drama play.
+//
+// `./talky lint golden` flags every field the engine would silently ignore.
+// Lint after every edit.
+// The complete value vocabularies (functions, poses, gestures, effect fields,
+// event verbs) are in registry.md beside this file — generated from the
+// engine, so it is exhaustive: names not listed there do not exist.
+//
+// Syntax primer
+//
+// IDs:
+// - Use snake_case ids: cartridge ids, prefab names, entity ids, action ids,
+//   cue ids.
+// - IDs are normalized to lowercase snake_case. Do not use spaces or dots.
+// - Entity ids are flat and global. Use `<child> parent <owner>` to build trees.
+// - Labels and verbs are display text. Title Case is a good style.
+// - Keep `Action verb` and `Action on` spelling/case the same, such as Press.
+//
+// Prefabs and cues:
+// - There is no static scene. Prefabs are entity templates; cues instantiate
+//   them at runtime with `Stage add` lines and tear them down with
+//   `Stage remove`.
+// - The boot cue (top-level `boot`, default "boot") assembles the world. It is
+//   fast-forwarded to completion whenever a world is built, so it must only
+//   add/remove prefabs and apply instant directions — no waits or dialogue.
+// - `Scene start opening` is just a cue named "opening". It does not auto-run
+//   by name.
+// - Start a cue from a host option, or during play with `World cue <id>`.
+//
+// Scripts:
+// - `{{ ... }}` means interpolate text or a value inside a string.
+// - Formula-only fields contain CEL directly. In an effect or ordinary value
+//   position, `=` introduces CEL instead of a literal.
+// - HUD text and HUD `for` loops update live, several times per second.
+// - `face.*` expressions update live, several times per second.
+// - `desc` templates render when someone looks at the entity.
+// - Action `when` runs when action choices are built.
+// - Action `observable` and `react` run when the event is made.
+// - Listener `when` expressions run when a matching observed event happens.
+//
+// Useful expression functions:
+// - distance(a,b): distance in scene units.
+// - visible(a,b): true when b can notice a — near enough, present, and with no
+//   solid scenery (a shut door, a wall) between them.
+// - held(item, holder): true when holder carries item.
+// - emotion(id,name): reads a public 0..1 state value.
+// - knows(id,text): true when knowledge contains text, ignoring case.
+// - actors(): visible, non-player NPCs as {id, name}.
+// - silence(): seconds since anyone spoke. idle(id): seconds since id was last
+//   in the action — acting, or being spoken to or acted upon.
+// - quietest(): id of the visible minded NPC who has held its tongue longest —
+//   lets one pulse reaction elect a single speaker instead of a pile-up.
+// - clamp(x,min,max), chance(p), randint(min,max), dice(sides), roll(n,sides),
+//   pick(list).
+//
+// Script names:
+// - `actor`: entity doing the action. In a listener, the listener's owner.
+// - `target`: primary entity acted on, such as the clicked object.
+// - `object`: secondary entity. For Say, this is the addressed listener.
+// - `observer`: entity being tested for noticing or reacting.
+// - `cause`: event that triggered a listener. It has seq, verb, actor, value,
+//   and its roles, including target, object, and knowledge provenance from.
+// - `looker`: entity reading a description line.
+// - `self`: in a desc template, the described entity — {id, name} plus the
+//   humanoid description fields listed under Naturalism below.
+// - `it`: current item in a HUD `for` row.
+// - `player`: current player entity, available in `face:` expressions.
+//
+// Naturalism — write only what the engine can vouch for:
+// - Never author a claim the world can contradict. Position, posture, gaze,
+//   mood, and dress are live state; interpolate them instead of imagining
+//   them. A humanoid's desc can read {{self.look}} — the full appearance in
+//   one clause — or the parts: {{self.species}}, {{self.skin}}, {{self.eyes}},
+//   {{self.hair}}, {{self.build}}, {{self.face}}, {{self.wearing}},
+//   {{self.posture}}, {{self.mood}}, {{self.watching}}, plus every raw
+//   structure knob ({{self.jaw_squareness}}). "Sitting on the sofa" is a lie
+//   the moment she stands; {{self.posture}} never lies. The same truths are
+//   readable anywhere via humanoid(id), e.g. {{humanoid('ana').watching}}.
+// - A desc is camera truth: what an observer sees this instant. Timeless
+//   physical traits are fine; interiority, backstory, and imagery carrying no
+//   scene information ("checking her reflection in his eyes") are not. Never
+//   presume a relationship with {{looker.name}} — the looker may be anyone.
+// - A mind knows only what it lived or was told. Its own past belongs in
+//   prompt and `knows` lines. Anything about another character must be
+//   discovered in play: gate attitude passages on knows()/heardFrom() so
+//   contempt or fear appears only after its cause was actually said, and let
+//   Shared/Learned carry facts from mouth to mouth.
+// - A secret a model holds is a secret a model telegraphs. If a reveal must
+//   wait, exclude it from the prompt until its time: prompts re-render every
+//   turn, and {{#if expr}}...{{elseif expr}}...{{else}}...{{/if}} include a
+//   passage only when its condition holds. For "later in the story", ratchet
+//   a hidden story entity's emotion from a listener and gate on it.
+// - Write wants, not world-claims: "make her look at you" is a goal that is
+//   always true; "she will not look at you" is a claim that is usually false.
+// - Reference only affordances that exist: a desc that mentions sitting needs
+//   a collidable support surface with a seated pose; a prompt that mentions a
+//   prop needs the prop.
+// games/live/noexit exercises all of these.
+//
+// Actions:
+// - A player/NPC command action has `verb`, optional `label`, optional `when`,
+//   optional `observable`, repeatable `react`, and ordered effect lines.
+// - `label` is display text. If omitted, the verb is used.
+// - `verb` creates an action option when `when` is true.
+// - `when` answers: can this action happen?
+// - `observable` answers: who notices after it happens? If omitted, nearby NPCs
+//   notice.
+// - `react` scores who may speak next. It is priority, not probability.
+//   Defaults are actor: 0, target: 1, object: 1, observer: 0.
+//   false or 0 suppresses that role. Higher numbers win.
+// - A listener action has `Action on Verb`. It is not shown as a player option.
+//   When its owner observes a matching event and `when` is true, its effects run.
+// - `Action on Pulse` listens to the ambient metronome (`Game pulse`), the way
+//   to act on dead air: nothing happening is not an event, so the pulse is.
+//
+// Effects:
+// - Each line inside an Action block is one ordered effect.
+// - `Actor`, `Target`, `Object`, and `Observer` are event roles. Other subjects
+//   are literal entity ids; `World` addresses stagecraft globals.
+// - Literal arguments need no marker: `Actor gesture nod`.
+// - Formula arguments use `=`: `Target watch = actor`.
+// - Writable entity fields: name, desc, controller, hear, seek,
+//   support, watch, hidden, perceivable, pose, gesture, turn, pos, rot, place, attach, detach,
+//   humanoid, and emotion.<name>. Multiple arguments stay ordered and typed.
+// - Writable World verbs are camera, camera_follow, control, cue, creator, add,
+//   and remove.
+//
+// NPC mind fields:
+// - `prompt`: core persona, wants, and speaking rules. Prompt lines
+//   accumulate, so identity and wants can ride on separate lines.
+// - `knows` lines: private facts. Use for stable facts, rules, clues —
+//   and, via the `hear` effect, things that happen in play.
+// - Knowledge is shown to the NPC on its turn.
+// - `knows(id,text)` checks knowledge by substring.
+// - `emotion`: public numeric state. Known face names also drive the face.
+//   Add duration seconds for a cooling moodlet: `Target emotion.angry 0.7 12s`.
+//   Timed contributions stack; omit duration for durable story state.
+// - `face`: live derived emotion values.
+// - `pose`, `gesture`, and `watch`: visible body and attention state.
+// - `seek`: movement intent.
+// - `turn`: asks an NPC to respond to an event.
+//
+// Staging, props, and zones:
+// - `anchor` marks a useful place. A pose on a collidable surface declares a
+//   supported posture; it is not an authored body-root position.
+// - `seek anchor_id` walks to that mark and faces its authored direction.
+// - `support chair_surface` approaches, solves the posed body against the
+//   object's colliders, and applies its pose/watch.
+// - `place` puts a prop on an anchor. `attach` puts a prop on an entity socket.
+// - `detach` releases a prop at its current world position.
+// - `zone` marks an invisible area. Use `in_zone(actor, zone)` in conditions.
+// - Moving into or out of a zone creates Enter and Exit events for listeners.
+// - Staying settled inside a zone creates Inside events about once per second.
+//
+// Cues:
+// - A cue is a named script opened with `Scene start <id>`.
+// - End every cue with `Scene end`; a scene id is declared exactly once.
+// - A cue may be one list of lines, or contain `Track start <id>` /
+//   `Track end` blocks for parallel work.
+// - Tracks start together and run in parallel.
+// - `wait` pauses only its own track.
+// - `sync` gives tracks a named meeting point. A track waits there
+//   until every other track using that same name has reached it.
+// - Every line has one subject. `Stage` is the technical crew — camera, fades,
+//   timing — and its `add`/`remove` verbs instantiate and tear down prefabs.
+// - Entity subjects control actors: `mentor: Line` speaks; `mentor gesture nod`
+//   directs. One direction per line; consecutive instant lines land in the
+//   same beat.
+// - Actor directions: say, pose, gesture, seek, support, watch, hidden, perceivable, place,
+//   attach, detach, emotion.
+// - `emotion` is `mentor emotion angry 0.5 [seconds]` — one name and level per line.
+// - `seek` starts movement; it does not wait. Use `Stage arrive { ... }`.
+//   `walkto`/`support` sugar emits the seek and its arrive barrier together.
+// - A film scene is wrapped in capture/release automatically; a `bare` scene
+//   is not — these reference cues are bare and spell the capture, cut, and
+//   release lines out.
+// - Without `wait`, a title/fade waits for in+hold+out, move/zoom waits for
+//   secs, and speech waits long enough to read.
+//
+// HUD:
+// - A HUD panel lives in an entity's `hud`. It is on screen while that
+//   entity is live and not hidden, so panels spawn and despawn with prefabs.
+// - A carrier entity needs no geometry: an invisible prefab works.
+// - `anchor` is left, right, top, or bottom.
+// - `HUD if <condition>` controls the whole panel.
+// - Rows are text, optionally followed by `for = <list expression>`.
+// - There are no per-row icons, colors, or conditions here. Put logic in the text
+//   expression, or hide a whole panel with `HUD if`.
+//
+// Entity and metadata fields:
+// - Entity fields include transform, geometry, material, collider, camera, light,
+//   billboard, tags, and metadata. Declare every nested leaf as a dotted path.
+// - Recognized metadata fields include name, desc, mind, hidden, perceivable, holdable,
+//   controller, sockets, anchor, zone, humanoid, watch, pose, seek, face,
+//   advertise, enter, and exit. Actions and surfaces use their dedicated blocks.
+// - `advertise false` hides automatic context-action rows without disabling the
+//   object's actions. A sole action can still be activated by clicking a pickable object.
+// - `enter 0.6` / `exit 0.4` dissolve the entity in and out (seconds) on
+//   spawn, reveal, and despawn. Pure presentation: the logical change is
+//   instant everywhere (perception, saves, replay).
+// - Knowledge (the `hear` effect) and `emotion` usually change through effects. `humanoid.expression`
+//   can seed starting emotion values.
+// - Unknown metadata can be notes for tools, but it does not affect play by
+//   itself. For mutable global story state, prefer a hidden entity.
+//
+// Layout:
+// - Declaration order never changes meaning (only line order inside a cue or
+//   action block does), so arrange a play for the reader. The convention:
+//   metadata, then engine config, then look (environment, materials, effects),
+//   then characters, then the set, then interactive props, then scenes.
+// - Group by dramatic subject, not statement type: keep an entity's
+//   declaration, name/desc, actions, and canvas together as one stanza. Put a
+//   character's generation config, pools, prefab, listeners, and casting cue
+//   in one band, so "how people are made" reads in one place.
+// - Indent the interior of start/end blocks two spaces; the compiler ignores
+//   leading whitespace everywhere, and a fenced """ body sheds the whitespace
+//   its lines share. games/live/vivarium is the worked example.
+
+Game id golden
+Game title "Golden Cartridge"
+Game author "Dramatoric"
+Game version "1"
+Game description "Reference cartridge exercising prefabs, NPC, action, HUD, cue, and scripting affordances."
+
+// The cue that assembles the world. "boot" is also the default, so this line
+// is optional; it is spelled out here for reference.
+Game boot boot
+
+// Visual style for this cartridge. `pixel` gives the low-res Talky look.
+Game render.pipeline pixel
+Game render.pixelScale 2
+
+// Movement step size in meters. Smaller lets characters stand closer together.
+Game grid.cell 0.5
+
+// The ambient metronome: about every `every` seconds of play (seed-jittered so
+// ambience never feels mechanical) a Pulse event reaches every entity with
+// listeners, and `Action on Pulse` reactions fill dead air — fidgets, roaming nudges,
+// story-clock advances, or `turn` requests gated by silence()/quietest().
+// Nonnegative `bursts` caps how many LLM turns pulses may start between player
+// actions, so an unattended room settles instead of spending forever. Player
+// action refills it; -1 keeps an autonomous world talking continuously. Shorthand
+// `Game pulse 9` uses the default bursts. Omit `pulse` entirely for a clockwork
+// cartridge: no pulses, no ambient spend.
+Game pulse.every 9
+Game pulse.bursts 3
+
+// Bubble lifetime is shared by live play, authored cues, replays, and films.
+// The engine uses the longer of reading time and voiced clip time, then lingers
+// and fades. `Speech End` listeners fire after the fade is gone. A failed turn
+// with no NPC speech emits `Dialogue End` for the intended respondent instead.
+Game dialogue.lifetime.min 1.6
+Game dialogue.lifetime.max 8
+Game dialogue.lifetime.chars 0.055
+Game dialogue.lifetime.audio 1
+Game dialogue.lifetime.linger 0.35
+Game dialogue.fade 0.3
+
+// Let players use `/do`, `/as`, `/log`, etc., and see command hints.
+Game ui.slashCommands true
+Game ui.hints true
+
+// Scene-wide policy: sky, lighting, and atmosphere. Not an entity. Ambient and
+// sun are colors whose luminance is their strength (defaults #949494 / #616161);
+// sun.direction points toward the light. Fog is linear over eye distance, its
+// color defaulting to the sky horizon; far <= near (or no fog) disables it.
+Game environment.sky.top "#202938"
+Game environment.sky.bottom "#5a6c7a"
+Game environment.ambient "#8e9499"
+Game environment.sun.color "#616161"
+Game environment.sun.direction [-0.35, 0.85, 0.45]
+Game environment.fog { color: #4a5a66, near: 12, far: 60 }
+
+// The shared material table every prefab draws from.
+Game materials.floor.color #3b4148
+Game materials.floor.roughness 0.9
+Game materials.wall.color #787f88
+Game materials.wall.roughness 0.85
+Game materials.trim.color #b08a48
+Game materials.trim.roughness 0.55
+Game materials.glass.color #4aa3b8
+Game materials.glass.roughness 0.2
+Game materials.glass.metallic 0.1
+Game materials.warm_light.color #fff1c2
+Game materials.warm_light.emissive #fff1c2
+Game materials.mentor.color #c98958
+Game materials.mentor.shader toon
+Game materials.mentor.params.bands 4
+Game materials.rival.color #7f8fc9
+Game materials.rival.shader toon
+Game materials.rival.params.bands 4
+Game materials.player.color #6fb77a
+Game materials.player.shader toon
+Game materials.player.params.bands 4
+Game materials.paper.color #e9dfc5
+Game materials.paper.roughness 0.75
+Game materials.prism.color #9be7ff
+Game materials.prism.roughness 0.2
+Game materials.marker.color #222222
+
+// Prefabs are entity templates the cues instantiate. An entity line outside a
+// scene builds structure; its root id defaults to the entity name. Decompose
+// by lifetime: one `room` prefab for everything static (named `room` here
+// because `Set` is a reserved stage subject), one prefab per character, so a
+// cue can add or remove any of them independently.
+//
+// Spatial rules:
+// - Units are meters.
+// - Positions are [x, y, z]. Y is up.
+// - Rotation is [x, y, z] in degrees. For people, Y is the facing yaw.
+// - Angular velocity is [x, y, z] in degrees/sec.
+// - Yaw 0 faces +Z. This room names -Z as "north".
+// - A plane lies on X/Z at its entity origin.
+// - Boxes, sprites, spheres, and humanoids are centered on their origin.
+//   Put a standing person at about half their height, so feet meet the floor.
+// - A prefab is authored around its own origin. A bare `Stage add x` drops it
+//   at that authored transform; `pos`/`rot` on the add override the root, and
+//   `parent` composes it into a live entity's frame.
+//
+// Geometry keys:
+// - plane: width, height.
+// - sprite: width, height.
+// - box: width, height, depth, optional skew.
+// - sphere: radius or radiusX/radiusY/radiusZ, optional segments/rings.
+// - cylinder: height, radius or radiusTop/radiusBottom, optional sides.
+// - extrude: profile, depth.
+// - lathe: profile of [radius, y] points revolved around Y, optional sides.
+// - mesh: vertices, faces.
+// - collider: box, sphere, mesh, or map with kind, center, size, radius.
+// - light: type point/directional/spot, intensity, color, range, angle.
+// - material: color, emissive, texture, roughness, metallic, shader, params.
+
+// Personas. A `prompt`, `knows`, or `persona.*` line makes an entity a
+// character with a persona of the same id; prefab structure lines follow below.
+player prompt """
+You are the player. You say only what the player types.
+"""
+
+mentor prompt """
+You are Mentor, a calm director inside a tiny reference scene. You
+know this room is an example cartridge. Stay in character anyway.
+When the visitor acts, explain the consequence in plain in-world
+terms.
+"""
+// Prompt lines accumulate: a later line appends to the same prompt, so
+// wants and scenario notes can ride separately from identity text.
+mentor prompt What you want: keep the demonstration calm and legible, and encourage the visitor to learn by trying actions.
+// `knows` lines are what Mentor starts out knowing. Use them for facts.
+// The `hear` effect can add more knowledge during play; `knows()` checks
+// it by substring.
+mentor knows The console opens the gate safely.
+mentor knows The rival thinks the visitor may replace them.
+// Every action and listener is one block. `when` guards it, `observable`
+// selects witnesses, repeatable `react` lines score responders, and effect
+// lines execute in authored order.
+Action start mentor follow_player
+Action label "Ask Mentor to Follow"
+Action verb "Follow"
+Action when distance(actor, target) <= 4
+Target seek = actor
+Target watch = actor
+Action end
+Action start mentor wait_here
+Action label "Ask Mentor to Wait"
+Action verb "Wait"
+Action when distance(actor, target) <= 4
+Target seek ""
+Action end
+// Listener action:
+// - `on Say` means this runs when Mentor observes a Say event.
+// - No label is needed, because it is not a player command.
+// - In a listener, `actor` is Mentor and `cause` is the Say event.
+// - `turn` asks Mentor to respond to that cause.
+// Every minded character already carries four built-in listeners:
+// `attend` (watch whoever addresses you), `reply` (turn when another
+// character addresses you — the player's line already draws a direct
+// response), `chime` (occasionally join an addressed exchange;
+// quietest() and chance() elect a single speaker), and `stir` (break a
+// long silence — it listens to the pulse, so it spends nothing unless
+// the cartridge sets one). Authoring an action with the same id
+// shadows its built-in — this attend replaces the default to add the
+// nod and the always-turn — and `when false` silences one entirely.
+Action start mentor attend
+Action on "Say"
+Action when cause.object == actor
+Actor watch = cause.actor
+Actor gesture nod
+Actor turn = cause.seq
+Action end
+Action start mentor wrap_up
+Action on "Say"
+Action when emotion('story', 'progress') >= 0.7 && !knows(actor, 'wrap the scene')
+Actor hear "It is time to wrap the scene. Help the visitor summarize what changed."
+World cue closing
+Action end
+
+rival prompt """
+You are Rival, a proud actor who fears being replaced. You are not
+evil; you are defensive. If the console is pressed, object sharply
+but reveal that your anger is mostly fear.
+"""
+// Wants bias Rival's improvised choices and dialogue; the deterministic
+// story beats still come from actions, effects, and cues below.
+rival prompt What you want: do not look foolish in front of Mentor, and keep control of the console if possible.
+// Starting facts for Rival. Knowledge can be changed by effects and
+// later queried with knows().
+rival knows The prism reacts to fear.
+// A scored action is stage business: the utility picker weighs score
+// per idle moment, so Rival broods more the angrier he gets. With no
+// authored verb or label, both default to the display form of the id.
+Action start rival brood
+Action score 0.1 + emotion(actor, 'angry') * 0.8
+Actor gesture sigh
+Action end
+// The target role wins with react score 1. Other observers may answer
+// only if no higher-scored role is available.
+Action start rival challenge
+Action label "Challenge Rival"
+Action verb "Challenge"
+Action when distance(actor, target) <= 4
+Action observable visible(actor, observer)
+Action react Target = 1
+Action react Observer = 0.2
+Target emotion.angry 0.65
+Target watch = actor
+Action end
+Action start rival attend
+Action on "Say"
+Action when cause.object == actor
+Actor watch = cause.actor
+Actor gesture shake
+Actor turn = cause.seq
+Action end
+// Dead air: when the room has been quiet, the NPC silent longest takes
+// the floor. The pulse is only the trigger; these conditions are the
+// policy — tune the threshold and chance per character.
+Action start rival stir
+Action on "Pulse"
+Action when silence() > 10 && actor == quietest() && chance(0.5)
+Actor turn = cause.seq
+Action end
+// `hear` ledgers facts learned in play — clues, rules, and things that
+// just happened ("teller>fact" attributes a source). Shown on NPC turns;
+// counts for knows().
+Action start rival object_to_console
+Action on "Press"
+Action when cause.target == 'console'
+Actor emotion.angry 0.55
+Actor hear "The visitor pressed the console before asking you."
+Actor turn = cause.seq
+Action end
+
+room parent null
+// Floors, walls, props, and characters are all entities.
+// A collider makes an entity solid.
+floor parent room
+floor geometry.plane.width 8
+floor geometry.plane.height 8
+floor material floor
+floor collider.kind box
+floor collider.center [0, -0.05, 0]
+floor collider.size [8, 0.1, 8]
+
+wall_north parent room
+wall_north transform.position [0, 1.5, -4]
+wall_north geometry.box.width 8
+wall_north geometry.box.height 3
+wall_north geometry.box.depth 0.2
+wall_north material wall
+wall_north collider box
+
+wall_south parent room
+wall_south transform.position [0, 1.5, 4]
+wall_south geometry.box.width 8
+wall_south geometry.box.height 3
+wall_south geometry.box.depth 0.2
+wall_south material wall
+wall_south collider box
+
+wall_east parent room
+wall_east transform.position [4, 1.5, 0]
+wall_east geometry.box.width 0.2
+wall_east geometry.box.height 3
+wall_east geometry.box.depth 8
+wall_east material wall
+wall_east collider box
+
+wall_west parent room
+wall_west transform.position [-4, 1.5, 0]
+wall_west geometry.box.width 0.2
+wall_west geometry.box.height 3
+wall_west geometry.box.depth 8
+wall_west material wall
+wall_west collider box
+
+console parent room
+console transform.position [0, 0.5, -2.8]
+console geometry.box.width 1.4
+console geometry.box.height 1.0
+console geometry.box.depth 0.55
+console material trim
+console collider.kind box
+console collider.size [1.4, 1.0, 0.55]
+console name Console
+console desc "a brass console with one guarded switch"
+// Command action:
+// - `verb` becomes a `/do Press ...` option when `when` is true.
+// - `when` checks whether the actor can do it to this target.
+// - `observable` checks which NPCs notice after it happens.
+// - `react` scores who gets first chance to speak about it.
+Action start console press_console prefab
+Action label "Press Console"
+Action verb Press
+Action when distance(actor, target) <= 2
+Action observable visible(actor, observer) && distance(actor, observer) < 5
+// `false` means the console itself should not answer.
+// The rival gets a stronger observer score than others.
+Action react Target = 0
+Action react Observer = observer == 'rival' ? 0.7 : 0.25
+// Each ordered effect writes story state.
+// Lists let list fields take many entries; scalar fields use
+// the first entry. `true`, `false`, and numbers may be raw.
+gate hidden "true"
+afterimage hidden "false"
+story emotion.progress "0.35"
+World cue "demonstration"
+Action end
+
+gate parent room
+gate transform.position [0, 1.1, -3.78]
+gate geometry.box.width 2.2
+gate geometry.box.height 2.2
+gate geometry.box.depth 0.08
+gate material glass
+gate collider.kind box
+gate collider.size [2.2, 2.2, 0.08]
+gate name "Blue Gate"
+gate desc "a blue-glass gate sealing the north exit"
+
+// Zones are invisible areas. They can be tested with
+// `in_zone(actor, zone_id)`. They emit Enter and Exit when crossed, and
+// Inside about once per second while an actor stays inside.
+threshold_zone parent room
+threshold_zone transform.position [0, 0.9, -3.1]
+threshold_zone name "Gate Threshold"
+threshold_zone zone.kind doorway
+threshold_zone zone.size [2.3, 2.0, 1.0]
+Action start threshold_zone note_threshold_crossing prefab
+Action on Enter
+Action when cause.target == actor
+story emotion.progress 0.6
+Action end
+
+Action start threshold_zone note_threshold_linger prefab
+Action on Inside
+Action when cause.target == actor
+story emotion.pressure 0.4
+Action end
+
+afterimage parent room
+afterimage transform.position [0, 1.1, -3.65]
+afterimage geometry.sprite.width 1.6
+afterimage geometry.sprite.height 1.1
+afterimage material warm_light
+afterimage billboard y
+afterimage name Afterimage
+afterimage hidden true
+afterimage desc "a golden afterimage shimmering where the gate used to be"
+
+table parent room
+table transform.position [0.15, 0.55, 0.2]
+table geometry.box.width 1.9
+table geometry.box.height 1.1
+table geometry.box.depth 1.0
+table material trim
+table collider.kind box
+table collider.size [1.9, 1.1, 1.0]
+table name "Work Table"
+table desc "a low work table scratched by many rehearsals"
+// A table spot is an anchor with a socket. Props can be placed on it.
+table_spot parent table
+table_spot transform.position [-0.38, 0.62, 0.05]
+table_spot name "Table Spot"
+table_spot hidden true
+table_spot anchor.kind table_spot
+table_spot anchor.socket top
+table_spot anchor.radius 0.25
+table_spot sockets.top [0, 0, 0]
+
+notebook parent table
+notebook transform.position [-0.38, 0.62, 0.05]
+notebook transform.rotation [0, 20, 0]
+notebook geometry.box.width 0.42
+notebook geometry.box.height 0.04
+notebook geometry.box.depth 0.28
+notebook material paper
+notebook collider.kind box
+notebook collider.size [0.42, 0.04, 0.28]
+notebook name Notebook
+notebook desc "a cream notebook full of stage blocking and half-finished lines"
+notebook holdable.socket hand_r
+Action start notebook read_notebook prefab
+Action label "Read Notebook"
+Action verb Read
+Action when held(target, actor)
+Action observable visible(actor, observer) && distance(actor, observer) < 4
+Action react Target = 0
+Action react Observer = observer == 'mentor' ? 0.8 : 0.25
+Actor hear "The notebook says: the mentor knows the switch is safe, but the rival fears being replaced."
+mentor emotion.surprised "0.75"
+story emotion.progress "0.75"
+Action end
+
+prism parent table
+prism transform.position [0.38, 0.72, 0.02]
+prism geometry.sphere.radius 0.14
+prism geometry.sphere.segments 16
+prism geometry.sphere.rings 8
+prism material prism
+prism collider.kind sphere
+prism collider.radius 0.14
+prism name Prism
+prism desc "a cool glass prism that hums when anyone lies nearby"
+prism holdable true
+Action start prism inspect_prism prefab
+Action label "Inspect Prism"
+Action verb Inspect
+Action when distance(actor, target) <= 2 || held(target, actor)
+Actor hear "The prism hums louder near fear than near danger."
+Action end
+
+// A supported posture is authored on the physical surface, not as an occupant
+// root. The runtime solves the posed body against nearby static colliders.
+visitor_chair parent room
+visitor_chair transform.position [-1.8, 0.9, 0.8]
+visitor_chair transform.rotation [0, 40, 0]
+visitor_chair geometry.sprite.width 0.8
+visitor_chair geometry.sprite.height 0.8
+visitor_chair billboard y
+visitor_chair name "Visitor Chair"
+visitor_chair desc "a simple chair beside the work table"
+visitor_chair_seat parent visitor_chair
+visitor_chair_seat transform.position [0, -0.38, 0]
+visitor_chair_seat geometry.box.width 0.7
+visitor_chair_seat geometry.box.height 0.1
+visitor_chair_seat geometry.box.depth 0.62
+visitor_chair_seat material trim
+visitor_chair_seat collider box
+visitor_chair_seat anchor.facing notebook
+visitor_chair_seat anchor.watch mentor
+visitor_chair_seat anchor.pose seated
+visitor_chair_seat anchor.radius 0.3
+visitor_chair_seat name "Visitor Chair"
+
+ceiling_light parent room
+ceiling_light transform.position [0, 2.7, -0.5]
+ceiling_light geometry.sphere.radius 0.15
+ceiling_light geometry.sphere.segments 16
+ceiling_light geometry.sphere.rings 8
+ceiling_light material warm_light
+ceiling_light light.type point
+ceiling_light light.intensity 5
+ceiling_light light.color "#fff1c2"
+ceiling_light light.range 9
+
+// A hidden entity is the recommended place for global story state.
+// Hidden means not rendered, not interactable, not perceived, not listed by
+// actors(), and not used as an obstacle. Effects can still target it by id.
+// `perceivable false` is narrower: the entity remains rendered and physical but
+// cannot enter another mind's environment, targeting, observations, or visible().
+// Perception is directional, so an unseen operator can still observe the room.
+// Here `progress` drives HUD text and a wrap-up reaction.
+story parent room
+story transform.position [0, 2.4, -3.6]
+story geometry.box.width 0.35
+story geometry.box.height 0.35
+story geometry.box.depth 0.08
+story material warm_light
+story name "Story Clock"
+story desc "a small clock ticking toward the next beat"
+story hidden true
+
+// Camera rigs for cutscenes. Position is the camera. `watch` is what it
+// aims at. `Stage cut player` returns to first-person view.
+cam_wide parent room
+cam_wide transform.position [2.9, 2.0, 2.7]
+cam_wide camera.fov 55
+cam_wide camera.near 0.05
+cam_wide camera.far 100
+cam_wide name cam_wide
+cam_wide hidden true
+cam_wide watch mentor
+
+cam_mentor parent room
+cam_mentor transform.position [-0.65, 1.45, 0.25]
+cam_mentor camera.fov 42
+cam_mentor camera.near 0.05
+cam_mentor camera.far 100
+cam_mentor name cam_mentor
+cam_mentor hidden true
+cam_mentor watch mentor
+
+cam_rival parent room
+cam_rival transform.position [0.7, 1.45, 0.35]
+cam_rival camera.fov 42
+cam_rival camera.near 0.05
+cam_rival camera.far 100
+cam_rival name cam_rival
+cam_rival hidden true
+cam_rival watch rival
+
+cam_table parent room
+cam_table transform.position [0, 1.65, 2.2]
+cam_table camera.fov 38
+cam_table camera.near 0.05
+cam_table camera.far 100
+cam_table name cam_table
+cam_table hidden true
+cam_table watch notebook
+
+// Hidden stage marks are places actors can walk to during cues.
+// `anchor` makes the mark exact: arrive waits for position and facing.
+mark_mentor parent room
+mark_mentor transform.position [-1.2, 0.9, -1.6]
+mark_mentor name mark_mentor
+mark_mentor hidden true
+mark_mentor anchor.kind mark
+mark_mentor anchor.facing player
+mark_mentor anchor.radius 0.2
+
+mark_rival parent room
+mark_rival transform.position [1.2, 0.9, -1.6]
+mark_rival name mark_rival
+mark_rival hidden true
+mark_rival anchor.kind mark
+mark_rival anchor.facing player
+mark_rival anchor.radius 0.2
+
+// HUD panels ride on entities. These carriers have no geometry: each exists
+// only so its panel is on screen while the prefab is live. Text reads live
+// story state.
+HUD start story_hud
+HUD anchor left
+HUD title STORY
+HUD row "{{emotion('story','progress') >= 0.7 ? 'Late scene' : emotion('story','progress') >= 0.35 ? 'Middle scene' : 'Opening scene'}}"
+HUD row "{{emotion('mentor','surprised') >= 0.6 ? 'Mentor is intrigued' : 'Mentor is reserved'}}"
+HUD end
+
+HUD start cast_hud
+HUD anchor right
+HUD title CAST
+// `actors()` returns every visible, non-player NPC as {id, name}.
+HUD row "{{it.name}} {{emotion(it.id,'angry') >= 0.5 ? 'angry' : emotion(it.id,'surprised') >= 0.5 ? 'surprised' : 'calm'}}" for = actors()
+HUD end
+
+// The player is a character with a camera and hand/eye attachment points.
+player transform.position [0, 0.9, 2.7]
+player transform.rotation [0, 180, 0]
+player collider.kind sphere
+player collider.radius 0.3
+player camera.fov 65
+player camera.near 0.05
+player camera.far 100
+player name You
+player controller player
+player desc a visitor testing the golden room
+player sockets.eyes [0, 0.7, 0]
+player sockets.hand_r [0.25, 0.3, 0.55]
+
+mentor transform.position [-1.2, 0.9, -1.0]
+mentor transform.rotation [0, 120, 0]
+mentor geometry.sprite.width 0.9
+mentor geometry.sprite.height 1.74
+mentor material mentor
+mentor billboard y
+mentor name Mentor
+// Humanoid recipe:
+// - species: female or male.
+// - seed: stable random body when no gene is given.
+// - gene: exact body string, optional.
+// - voice: voice id from the chosen voice pack.
+// - expression: starting emotion weights, 0..1.
+// - visible face emotion ids: happy, sad, angry, fearful, surprised,
+//   disgusted, confused, romantic, bored, tired, suspicious, devious,
+//   embarrassed, worried.
+// - Other emotion names are still valid story state for HUD/conditions.
+// - skin: optional authored skin color.
+// - hair keys: color, length, gravity, taper, thickness, density,
+//   bangs, bang_length, beard, mustache, sideburns, and their style keys.
+// - bangs values: none, straight, side, side_swept, curtain.
+// - outfit keys include shirt, sleeve_length, pants, pants_length,
+//   skirt, skirt_length, shoes, belt, collar, cuffs, loose, toe.
+//   Colors are #rrggbb or none. Most clothing numbers are 0..1.
+mentor humanoid.species female
+mentor humanoid.seed 101
+mentor humanoid.voice af_bella
+mentor humanoid.expression.surprised 0.25
+mentor humanoid.hair.color #4a3024
+mentor humanoid.hair.length 0.08
+mentor humanoid.hair.bangs curtain
+mentor humanoid.hair.bang_length 0.05
+mentor humanoid.outfit.shirt #6a3f2e
+mentor humanoid.outfit.sleeve_length 0.8
+mentor humanoid.outfit.pants #2b2c33
+mentor humanoid.outfit.shoes #1b1918
+mentor desc Mentor, a careful stage director, watches {{looker.name}} with practiced patience.
+mentor watch rival
+// Derived face value: Mentor perks up when the player is near.
+mentor face.surprised clamp(emotion(actor, 'surprised') + (distance(actor, player) < 2.5 ? 0.2 : 0), 0, 1)
+mentor sockets.hand_r [0.25, 0.25, 0.45]
+
+rival transform.position [1.25, 0.9, -1.0]
+rival transform.rotation [0, -120, 0]
+rival geometry.sprite.width 0.9
+rival geometry.sprite.height 1.78
+rival material rival
+rival billboard y
+rival name Rival
+rival humanoid.species male
+rival humanoid.seed 202
+rival humanoid.expression.angry 0.15
+rival humanoid.expression.worried 0.35
+rival humanoid.hair.color #28231f
+rival humanoid.hair.length 0.035
+rival humanoid.hair.bangs none
+rival humanoid.outfit.shirt #37456b
+rival humanoid.outfit.sleeve_length 1.0
+rival humanoid.outfit.pants #24262e
+rival humanoid.outfit.shoes #171719
+rival desc Rival stands near the console, measuring {{looker.name}} like competition.
+rival watch mentor
+rival seek.mode roam
+rival seek.range 2
+rival seek.dwell 120
+// Stage business: while idle, Rival periodically performs his best-scoring
+// action below (score: expressions) or takes an ambient wander step, with
+// no LLM turn. dwell is ticks between bits; move weighs the wander step.
+rival business.dwell [240, 600]
+rival business.move 0.15
+rival face.angry emotion(actor, 'angry')
+rival face.worried clamp(emotion(actor, 'worried') + (held('prism', player) ? 0.25 : 0), 0, 1)
+rival sockets.hand_r [0.25, 0.25, 0.45]
+
+// Cue scripts: fixed cutscene beats with staging, cameras, and dialogue.
+// `Stage` is the technical crew — it builds and strikes the set too. Entity
+// subjects direct actors: `mentor: Line` speaks, any other verb directs.
+//
+// Stage commands:
+// - `Stage add room` — instantiate a prefab; the token is both prefab name
+//   and id.
+// - `Stage add { id: rival_2, prefab: rival, parent: room, pos: [1, 0, 2],
+//   rot: 90 }` — spawn a named copy. `prefab` defaults to `id` (and vice
+//   versa); `pos`/`rot` override the prefab root's transform (rot: yaw scalar
+//   or [x, y, z]); `parent` composes the spawn into a live entity's frame;
+//   `tn: 0.8` overrides the enter dissolve (seconds) for this instantiation.
+// - `Stage remove rival_2` — or `Stage remove { id: rival_2, tn: 0.5 }` —
+//   tears down the entity and its authored subtree (tn overrides the exit
+//   dissolve). Re-adding a live id replaces it (last one wins).
+// - `Stage capture` / `Stage release` pause or restore player control.
+//   `Stage capture movement` takes the body and the camera — that is a
+//   cinematic, and the room's ambient turns hold while it plays. `Stage
+//   capture interaction` only reserves the props: advertised actions,
+//   authored controls, and world clicks go quiet, while walking, talking, and
+//   the room's own conversation carry on. Never hold either across a long
+//   `Stage await`; the busy state on the thing being worked is the feedback.
+// - `Stage cut <camera id>`, or `Stage cut player`.
+// - `Title show <text> [color] [secs]`, or `Stage title { text, color, in,
+//   hold, out }` for exact ramps.
+// - `Stage fade black 2s`, or `Stage fade { color, in, hold, out }` for exact
+//   ramps. `hold: open` is a curtain: it stays opaque while following lines
+//   work under it (the line itself waits only for `in`); `Stage fade release`
+//   reveals when the work is done. Live play and recordings pace identically.
+// - `Stage move { from, to, secs, ease }`. Ease: linear, smooth, in, out,
+//   inout.
+// - `Stage zoom { cam, from, to, secs, ease }`. Lower fov feels closer.
+// - `Stage follow <actor_id>`, or `Stage follow { target, distance, height,
+//   side, aim, fov }`. The camera follows the target until a cut, move, or
+//   `Stage follow stop`.
+// - `Stage wait <secs>`.
+// - `Stage await character { brief: "a retired duelist", timeout: 45 } as
+//   guest else problem` pauses only this track, binds a typed result, and
+//   records the outcome. Failure or timeout runs lines through `Stage end`,
+//   with `problem.status` and optional `problem.error`, then ends that track;
+//   success skips those lines and continues. Later success lines may use
+//   `Stage add = guest.spawn`, `guest name = guest.name`, or
+//   `narrator: Here comes {{guest.name}}.` Active waits, branches, and bindings
+//   survive saves; replay uses recorded effects and never repeats the task.
+//   The built-in character result includes appearance, story, persona,
+//   humanoid, and spawn.
+// - `Stage arrive { actor_id: target_id }`. Use after `seek`.
+// - `Stage creator <entity_id>` — open the character creator for that entity
+//   (species toggle, sliders, colors, outfit, randomize, name; NPCs then
+//   perceive the committed look via desc). Map form spawns first:
+//   `Stage creator { id: hero, prefab: hero, species: female, seed: 7,
+//   name: Nell, choices: { appearances: [european, east_asian+vampire],
+//   roles: true }, preview: { gestures: [nod, explain] } }`.
+//   Choices add a PRESET tab, constrain committed appearance/wardrobe, and
+//   survive Randomize. `true` exposes the complete shared vocabulary.
+//   Preview choices affect only the creator mannequin and survive Randomize;
+//   use `true` for either list to expose the full shared/cartridge vocabulary.
+//   The track holds until DONE; headless playback (and the boot fast-forward)
+//   auto-resolves to the seeded character. Also an effect: `World creator`.
+//   Queue a creator cue at new game with the top-level `start` field.
+// - `Stage sync <name>`. Wait for other tracks at the same name.
+// - `Stage place { prop_id: anchor_id }`.
+// - `Stage attach { prop_id: entity_id.socket_name }`.
+// - `Stage detach <prop_id>`.
+
+// The boot cue assembles the world before anyone is watching. It is
+// fast-forwarded whenever a world is built, so keep it to add/remove lines
+// and instant directions. Order matters: the set first, then everything that
+// stands on it.
+Scene start boot
+Stage add room
+Stage add mentor
+Stage add rival
+Stage add story_hud
+Stage add cast_hud
+Stage add player
+Scene end
+
+Scene start opening bare
+Stage capture
+Stage cut cam_wide
+Title show "Golden Room" black 1s
+mentor watch player
+mentor emotion surprised 0.45
+rival watch player
+rival emotion worried 0.45
+Stage move { from: cam_wide, to: cam_table, secs: 1.5, ease: smooth }
+mentor: This room is small on purpose. Every object here teaches one rule.
+Stage cut cam_rival
+rival gesture shake
+rival emotion angry 0.35
+rival: And every rule gives someone else a lever.
+Stage release
+Stage cut player
+Scene end
+
+Scene start demonstration bare
+Stage capture
+Stage cut cam_wide
+mentor watch rival
+mentor: Places, both of you. Let the room show its wiring.
+mentor seek mark_mentor
+rival seek mark_rival
+rival emotion worried 0.6
+Stage arrive { mentor: mark_mentor }
+Stage arrive { rival: mark_rival }
+Stage attach { notebook: mentor.hand_r }
+Stage detach notebook
+Stage place { notebook: table_spot }
+Stage fade { color: black, in: 0.15, hold: 0.15, out: 0.35 }
+Stage move { from: cam_wide, to: cam_mentor, secs: 1.2, ease: inout }
+mentor emotion surprised 0.8
+mentor: The switch moved state, the story clock advanced, and the gate yielded.
+Stage zoom { cam: cam_mentor, from: 42, to: 32, secs: 1.0, ease: out }
+Stage cut cam_rival
+rival gesture shake
+rival emotion angry 0.55
+rival watch player
+rival: It also proved I was not consulted.
+Stage wait 1s
+Stage release
+Stage cut player
+Scene end
+
+// Parallel tracks are nested inside one scene.
+// The tracks start together and meet at `Stage sync places`.
+Scene start parallel_demo bare
+Track start camera
+Stage capture
+Stage cut cam_wide
+Stage move { from: cam_wide, to: cam_table, secs: 1.2, ease: smooth }
+Stage sync places
+Stage release
+Stage cut player
+Track end
+
+Track start actors
+mentor seek mark_mentor
+mentor watch rival
+rival seek mark_rival
+rival watch mentor
+Stage arrive { mentor: mark_mentor }
+Stage arrive { rival: mark_rival }
+Stage sync places
+mentor: The actors, camera, and prop track met at the same point.
+Track end
+
+Track start props
+Stage wait 0.5s
+Stage attach { notebook: mentor.hand_r }
+Stage sync places
+Track end
+Scene end
+
+Scene start seat_demo bare
+Stage capture
+Stage cut cam_wide
+rival support visitor_chair_seat
+rival: Fine. I will take the chair, but I am still watching.
+Stage release
+Stage cut player
+Scene end
+
+Scene start follow_demo bare
+Stage capture
+Stage follow { target: mentor, distance: 3.2, height: 1.7, side: 0.6, aim: 1.1, fov: 45 }
+mentor seek mark_mentor
+mentor watch player
+mentor: The camera can follow a moving actor now.
+Stage follow stop
+Stage release
+Stage cut player
+Scene end
+
+// A spawn showcase: strike the rival, then bring in a fresh copy composed
+// into the set's frame at a new mark.
+Scene start spawn_demo bare
+Stage capture
+Stage cut cam_wide
+Stage remove rival
+Stage add { id: rival, prefab: rival, pos: [1.2, 0.9, -1.6] }
+rival watch player
+rival: You struck my mark and rebuilt me two steps north. I noticed.
+Stage release
+Stage cut player
+Scene end
+
+Scene start closing bare
+Stage capture
+Stage cut cam_wide
+mentor gesture nod
+mentor watch player
+mentor: That is enough for the example. You changed the room, and the room remembered.
+Stage cut cam_rival
+rival emotion angry 0.2
+rival emotion worried 0.2
+rival watch mentor
+rival: Fine. Maybe the visitor can stay for one more rehearsal.
+Stage wait 1.5s
+Stage release
+Stage cut player
+Scene end

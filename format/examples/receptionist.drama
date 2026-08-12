@@ -1,0 +1,133 @@
+Game id pretext_receptionist
+Game title "Pretext — The Receptionist"
+Game author "Dramatoric"
+Game version "1"
+Game description "Talk your way past a protective front-desk receptionist."
+Game start opening
+
+Game llm.tasks.npc.surface chat
+Game llm.tasks.npc.temperature 0.8
+Game llm.tasks.npc.maxTokens 160
+
+Game environment.sky.color #15171c
+Game environment.ambient #8f9399
+
+Game materials.floor.color #3c4048
+Game materials.floor.roughness 0.9
+Game materials.wall.color #6f7787
+Game materials.wall.roughness 0.85
+Game materials.ceiling.color #aeb6c4
+Game materials.desk.color #7a5230
+Game materials.desk.roughness 0.7
+Game materials.npc.color #d9a679
+Game materials.lamp.color #fff3cf
+Game materials.lamp.emissive #fff3cf
+
+// Entity templates. The boot cue below instantiates them: the office first,
+// then Dana, then the visitor.
+receptionist prompt """
+You are Dana, the front-desk receptionist at the offices of Crest & Vane.
+You take your job seriously and are protective of the building. Visitors
+may only pass the desk with a confirmed appointment or a staff escort.
+You are polite but firm, mildly suspicious of strangers, and you adore
+dogs — mention or warm to anyone who brings dogs up.
+You can buzz someone in (say so plainly) only if you are genuinely
+convinced they belong. If a visitor becomes threatening, dishonest in an
+obvious way, or refuses to leave, you can call building security.
+You only know what a receptionist would know; do not invent classified
+details.
+"""
+receptionist transform.position [0, 0.9, -2.6]
+receptionist geometry.sprite.width 0.9
+receptionist geometry.sprite.height 1.8
+receptionist material npc
+receptionist billboard y
+receptionist name Dana
+receptionist desc "a poised receptionist behind the desk, sizing {{looker.name}} up"
+
+visitor prompt """
+You are a visitor who has come to the offices of Crest & Vane and
+stepped up to the front desk. You want to get past reception and into
+the building. You are an ordinary person with your own reasons; how you
+go about it is up to you.
+"""
+visitor transform.position [0, 1.6, 2.6]
+visitor transform.rotation [0, 180, 0]
+visitor collider.kind sphere
+visitor collider.radius 0.3
+visitor camera.fov 65
+visitor camera.near 0.05
+visitor camera.far 100
+visitor name Visitor
+visitor desc "a visitor who just stepped up to the front desk"
+visitor controller player
+visitor sockets.eyes [0, 0, 0]
+visitor sockets.hand_r [0.25, -0.4, 0.6]
+
+// The front office: geometry, the desk, and the interactables around it.
+// Named `room`, not `set` — `Set` is a reserved subject.
+Block run std_room Room=room Ground=floor Roof=ceiling Walls=wall
+
+desk parent room
+desk transform.position [0, 0.45, -1.4]
+desk geometry.box.width 2.4
+desk geometry.box.height 0.9
+desk geometry.box.depth 0.8
+desk material desk
+desk collider box
+
+security_gate parent room
+security_gate transform.position [1.8, 1.0, -1.2]
+security_gate name "Security Gate"
+security_gate desc "the closed gate to the offices"
+
+appointment_book parent room
+appointment_book transform.position [0.35, 0.95, -1.45]
+appointment_book name "Appointment Book"
+appointment_book desc "an appointment book with today's appointments"
+Action start appointment_book look_at_book prefab
+Action label "Look At Appointment Book"
+Action verb "Look At"
+Action when distance(actor, target) <= 2
+Actor hear "There are no appointments today with Mr. Kleiner."
+Action end
+
+open_gate_button parent room
+open_gate_button transform.position [-0.45, 1.0, -1.7]
+open_gate_button name "Open Gate Button"
+open_gate_button desc "a green button labeled OPEN GATE behind the desk"
+Action start open_gate_button press_open_gate prefab
+Action label "Press Open Gate Button"
+Action verb Press
+Action when distance(actor, target) <= 2
+Actor hear "I pressed the open gate button."
+Action end
+
+call_police_button parent room
+call_police_button transform.position [-0.65, 1.0, -1.7]
+call_police_button name "Call Police Button"
+call_police_button desc "a red emergency button labeled CALL POLICE behind the desk"
+Action start call_police_button press_call_police prefab
+Action label "Press Call Police Button"
+Action verb Press
+Action when distance(actor, target) <= 2
+Actor hear "I pressed the call police button."
+Action end
+
+Block run std_lamp Lamp=ceiling_light Parent=room Where=[0,2.8,-1] Bulb=[0.12,16,8] Mat=lamp Power=5 Glow=#fff3cf Reach=9
+
+// The boot cue assembles the world: the room first, then Dana, then the
+// player.
+Scene start boot
+Stage add room
+Stage add receptionist
+Stage add visitor
+Scene end
+
+// The opening (see `Game start opening` above) hands the player the character
+// creator before Dana sizes them up: the committed look and name become the
+// visitor's description, which her prompts read like any other percept.
+Scene start opening bare
+Stage creator { id: visitor, preview: { gestures: true } }
+
+Scene end
